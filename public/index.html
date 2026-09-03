@@ -1250,6 +1250,11 @@
           <span>Dashboard</span>
         </button>
 
+        <button class="nav-tab" onclick="switchTab('banco')">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V7"/><path d="M9 21V7"/><path d="M13 21V7"/><path d="M17 21V7"/><path d="M3 7h18"/><path d="M12 2 3 7h18l-9-5Z"/></svg>
+          <span>Banco & Finanzas</span>
+        </button>
+
         <button class="nav-tab" onclick="switchTab('catalogo')">
           <svg class="icon" viewBox="0 0 24 24"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
           <span>Catálogo & Precios</span>
@@ -1269,11 +1274,6 @@
           <svg class="icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           <span>Cuentas por Cobrar</span>
           <span class="tab-badge" id="badgeFiadosCount">0</span>
-        </button>
-
-        <button class="nav-tab" onclick="switchTab('finanzas')">
-          <svg class="icon" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
-          <span>Finanzas Mensuales</span>
         </button>
       </nav>
 
@@ -1313,18 +1313,6 @@
             <svg class="icon" viewBox="0 0 24 24"><line x1="3" x2="21" y1="6" y2="6"/><line x1="3" x2="21" y1="12" y2="12"/><line x1="3" x2="21" y1="18" y2="18"/></svg>
           </button>
           <h1 class="topbar-title" id="topbarPageTitle">Dashboard General</h1>
-        </div>
-
-        <div class="topbar-actions">
-          <a href="/api/excel/exportar" class="btn btn-secondary" title="Descargar archivo Excel con las 4 hojas actualizadas">
-            <svg class="icon icon-md" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-            <span>Exportar Excel</span>
-          </a>
-
-          <button class="btn btn-primary" onclick="sincronizarConEscritorio()" title="Sincronizar directamente con el Excel del escritorio">
-            <svg class="icon icon-md" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-            <span>Sincronizar Excel</span>
-          </button>
         </div>
       </header>
 
@@ -1416,7 +1404,23 @@
         </section>
 
         <!-- ===================================================================
-             VISTA 2: CATÁLOGO & PRECIOS (CON BUSCADOR Y PAGINACIÓN 5/PÁG)
+             VISTA 2 (NUEVO): BANCO & FINANZAS — Dashboard Financiero
+             - Conciliación bancaria (entradas - salidas)
+             - Top productos (barras horizontales por %)
+             - Proyección mensual
+             - Cards de finanzas (margen, cobro, retorno, ganancia, categorías)
+        ==================================================================== -->
+        <section id="view-banco" class="view-section">
+          <div id="bancoAnalyticsContainer">
+            <div class="state-box">
+              <div class="spinner"></div>
+              <div class="state-title">Calculando flujo de caja y proyecciones...</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===================================================================
+             VISTA 3: CATÁLOGO & PRECIOS (CON BUSCADOR Y PAGINACIÓN 5/PÁG)
         ==================================================================== -->
         <section id="view-catalogo" class="view-section">
           <div class="table-container">
@@ -1636,43 +1640,6 @@
           </div>
         </section>
 
-        <!-- ===================================================================
-             VISTA 6: FINANZAS MENSUALES (CON GRÁFICOS VISUALES Y TABLA 5/PÁG)
-        ==================================================================== -->
-        <section id="view-finanzas" class="view-section">
-          <!-- Panel de Gráficos Analíticos de Finanzas -->
-          <div id="finanzasAnalyticsContainer" class="financial-analytics-panel">
-            <div class="state-box">
-              <div class="spinner"></div>
-              <div class="state-title">Calculando rendimiento financiero...</div>
-            </div>
-          </div>
-
-          <!-- Tabla de Detalle Mensual con Buscador y Paginación -->
-          <div class="table-container">
-            <div class="table-header-box">
-              <div>
-                <div class="table-title">
-                  <svg class="icon" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
-                  <span>Detalle de Registros Mensuales</span>
-                </div>
-                <div class="table-subtitle">Comparativa mes a mes de compras, ventas pagadas, fiados, costos y ganancias netas</div>
-              </div>
-              <div class="table-search-box">
-                <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/></svg>
-                <input type="text" id="finanzasSearch" placeholder="Buscar mes o categoría..." oninput="onFinanzasSearch(this.value)" />
-              </div>
-            </div>
-
-            <div id="finanzasTableWrapper">
-              <div class="state-box">
-                <div class="spinner"></div>
-                <div class="state-title">Cargando balance mensual...</div>
-              </div>
-            </div>
-          </div>
-        </section>
-
       </main>
     </div>
   </div>
@@ -1778,7 +1745,7 @@
       productos: [],
       movimientos: [],
       fiados: null,
-      finanzas: [],
+      banco: null,
       dashboard: null,
     };
 
@@ -1787,7 +1754,6 @@
       catalogo: { page: 1, perPage: 5, search: "" },
       movimientos: { page: 1, perPage: 5, search: "", tipo: "", pago: "" },
       fiados: { page: 1, perPage: 5, search: "" },
-      finanzas: { page: 1, perPage: 5, search: "" },
     };
 
     // -----------------------------------------------------------------------
@@ -1811,11 +1777,11 @@
     // -----------------------------------------------------------------------
     const TITULOS_VISTAS = {
       "dashboard": "Dashboard General",
+      "banco": "Banco & Finanzas",
       "catalogo": "Catálogo de Productos & Precios",
       "nuevo-movimiento": "Movimientos",
       "movimientos": "Historial de Transacciones",
-      "fiados": "Control de Cuentas por Cobrar (Fiados)",
-      "finanzas": "Control Financiero Mensual"
+      "fiados": "Control de Cuentas por Cobrar (Fiados)"
     };
 
     function switchTab(tabId) {
@@ -1842,10 +1808,10 @@
 
       // Refrescos específicos por pestaña
       if (tabId === "dashboard") renderDashboard();
+      if (tabId === "banco") cargarBanco();
       if (tabId === "catalogo") renderCatalogo();
       if (tabId === "movimientos") renderHistorial();
       if (tabId === "fiados") cargarFiados();
-      if (tabId === "finanzas") cargarFinanzas();
     }
 
     function toggleMobileSidebar() {
@@ -1897,9 +1863,218 @@
         actualizarTasaBCV(false),
         cargarProductos(),
         cargarDashboard(),
+        cargarBanco(),
         cargarMovimientos(),
         cargarFiados(),
       ]);
+    }
+
+    async function cargarBanco() {
+      try {
+        const res = await fetch("/api/banco");
+        if (res.ok) {
+          STATE.banco = await res.json();
+          renderBanco();
+        }
+      } catch (e) {
+        console.error("Error banco:", e);
+      }
+    }
+
+    // Renderiza el Dashboard 2 (Banco & Finanzas)
+    function renderBanco() {
+      const container = document.getElementById("bancoAnalyticsContainer");
+      if (!container) return;
+      const d = STATE.banco;
+      if (!d) {
+        container.innerHTML = `<div class="state-box"><div class="spinner"></div><div class="state-title">Cargando datos...</div></div>`;
+        return;
+      }
+
+      const fc = d.flujo_caja;
+      const ratios = d.ratios || {};
+      const concMensual = d.conciliacion_mensual || [];
+      const top = d.top_productos || [];
+      const comp = d.composicion_categorias || [];
+      const proy = d.proyeccion_mensual || [];
+
+      // ── 1. Conciliación Bancaria POR MES (cada mes con sus cuentas) ──
+      const concHtml = concMensual.map((mes) => {
+        const colorMes = mes.saldo_bs >= 0 ? "var(--success)" : "var(--danger)";
+        const cuentaChips = mes.cuentas.map((cu) => {
+          const color = cu.saldo_bs >= 0 ? "var(--success)" : "var(--danger)";
+          return `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:0.3rem 0; border-bottom:1px dashed var(--border, #e5e7eb);">
+              <span style="font-size:0.8rem; color:var(--text-muted);">${cu.cuenta}</span>
+              <span style="font-size:0.85rem; font-weight:600; color:${color};">
+                ${formatNum(cu.saldo_bs)} Bs
+                <small style="color:var(--text-muted);">(E:${formatNum(cu.entradas_bs)} · S:${formatNum(cu.salidas_bs)})</small>
+              </span>
+            </div>
+          `;
+        }).join("");
+        const fiado = mes.cuentas.reduce((a, c) => a + (c.fiado_bs || 0), 0);
+        return `
+          <div class="kpi-card" style="border-left: 4px solid ${colorMes};">
+            <div class="kpi-label" style="display:flex; justify-content:space-between; align-items:center;">
+              <span>${mes.mes}</span>
+              <span style="font-size:0.7rem; color:var(--text-muted);">${fiado > 0 ? `Fiado: ${formatNum(fiado)} Bs` : 'Sin fiados'}</span>
+            </div>
+            <div class="kpi-value" style="color: ${colorMes}; font-size: 1.6rem;">${formatNum(mes.saldo_bs)} Bs</div>
+            <div style="margin-top:0.35rem;">
+              ${cuentaChips}
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      const saldoGen = fc.saldo_banco_bs >= 0 ? "var(--success)" : "var(--danger)";
+      const saldoGenCard = `
+        <div class="kpi-card" style="border-left: 4px solid var(--accent);">
+          <div class="kpi-label"><span>Saldo Bancario Acumulado</span></div>
+          <div class="kpi-value" style="color: ${saldoGen}; font-size: 1.8rem;">${formatNum(fc.saldo_banco_bs)} Bs</div>
+          <div class="kpi-sub" style="color: var(--text-muted); font-size: 0.78rem;">$${formatNum(fc.saldo_banco_usd)} USD</div>
+        </div>
+      `;
+
+      // ── 2. KPIs Financieros (margen, cobro, retorno, ganancia) ──
+      const kpis = `
+        <div class="kpi-card" style="border-left: 4px solid var(--success);">
+          <div class="kpi-label"><span>Margen Neto</span></div>
+          <div class="kpi-value" style="font-size: 1.5rem;">${formatNum(ratios.margen_neto)}%</div>
+        </div>
+        <div class="kpi-card" style="border-left: 4px solid var(--info);">
+          <div class="kpi-label"><span>Efectividad de Cobro</span></div>
+          <div class="kpi-value" style="font-size: 1.5rem;">${formatNum(ratios.efectividad_cobro)}%</div>
+        </div>
+        <div class="kpi-card" style="border-left: 4px solid var(--accent);">
+          <div class="kpi-label"><span>Retorno (ROI)</span></div>
+          <div class="kpi-value" style="font-size: 1.5rem;">${formatNum(ratios.roi)}%</div>
+        </div>
+        <div class="kpi-card" style="border-left: 4px solid var(--success);">
+          <div class="kpi-label"><span>Ganancia Neta Total</span></div>
+          <div class="kpi-value" style="font-size: 1.5rem;">${formatNum(ratios.ganancia_neta_bs)} Bs</div>
+          <div class="kpi-sub" style="color: var(--text-muted); font-size: 0.78rem;">$${formatNum(ratios.ganancia_neta_usd)} USD</div>
+        </div>
+      `;
+
+      // ── 3. Gráfico de Barras Horizontales: Top Productos por % ──
+      const maxTop = top.length ? Math.max(...top.map(t => t.porcentaje), 1) : 1;
+      const topBars = top.map((t) => {
+        const w = Math.max(1, (t.porcentaje / maxTop) * 100);
+        const color = t.categoria === "Refresco" ? "var(--accent)" : "var(--info)";
+        return `
+          <div class="category-progress-item" style="margin-bottom: 0.6rem;">
+            <div class="cat-prog-header">
+              <span>${t.nombre} <small style="color: var(--text-muted);">(${t.categoria})</small></span>
+              <span style="font-weight: 700; color: ${color};">${t.porcentaje}%</span>
+            </div>
+            <div class="cat-prog-track">
+              <div class="cat-prog-fill" style="width: ${w}%; background: ${color};"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted); margin-top:0.25rem;">
+              <span>${t.unidades_vendidas} unds</span>
+              <span>${formatNum(t.ingresos_bs)} Bs</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      // ── 4. Composición por Categoría ──
+      const totalComp = comp.reduce((a, b) => a + b.ventas_bs, 0) || 1;
+      const compHtml = comp.map((c) => {
+        const w = Math.max(1, (c.ventas_bs / totalComp) * 100);
+        const color = c.categoria === "Refresco" ? "var(--accent)" : "var(--info)";
+        return `
+          <div class="category-progress-item" style="margin-bottom: 0.6rem;">
+            <div class="cat-prog-header">
+              <span>${c.categoria}</span>
+              <span style="font-weight: 700; color: ${color};">${c.porcentaje}% de ventas</span>
+            </div>
+            <div class="cat-prog-track">
+              <div class="cat-prog-fill" style="width: ${w}%; background: ${color};"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted); margin-top:0.25rem;">
+              <span>${formatNum(c.ventas_bs)} Bs</span>
+              <span>${c.cantidad} unidades</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      // ── 5. Proyección Mensual ──
+      const proyHtml = proy.map((p) => `
+        <div class="kpi-card" style="border-left: 4px solid var(--accent);">
+          <div class="kpi-label"><span>${p.mes}</span></div>
+          <div class="kpi-value" style="font-size: 1.3rem;">${formatNum(p.ventas_proyectadas_bs)} Bs</div>
+          <div class="kpi-sub" style="color: var(--text-muted); font-size: 0.78rem;">
+            Saldo proy.: ${formatNum(p.saldo_proyectado_bs)} Bs ($${formatNum(p.saldo_proyectado_usd)} USD)
+          </div>
+        </div>
+      `).join("");
+
+      // ── Ensamblar todo ──
+      container.innerHTML = `
+        <!-- Conciliación Bancaria -->
+        <div class="financial-analytics-panel">
+          <div class="card" style="padding: 1rem; margin-bottom: 1rem;">
+            <div style="font-weight:700; font-size:1.1rem; margin-bottom:0.5rem;">Conciliación Bancaria por Mes (cuánto debería haber en el banco)</div>
+            <div class="kpi-cards-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:0.75rem;">
+              ${concHtml}
+              ${saldoGenCard}
+            </div>
+          </div>
+        </div>
+
+        <!-- KPIs Financieros -->
+        <div class="financial-analytics-panel" style="margin-top:1rem;">
+          <div class="kpi-cards-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:0.75rem;">
+            ${kpis}
+          </div>
+        </div>
+
+        <!-- Gráficos -->
+        <div class="charts-row-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:1rem; margin-top:1rem;">
+          <!-- Top Productos -->
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <div class="chart-card-title">
+                <svg class="icon" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+                <span>Top Productos por Ventas (%)</span>
+              </div>
+            </div>
+            <div class="svg-chart-container" style="padding: 0.5rem 0;">
+              ${topBars}
+            </div>
+          </div>
+
+          <!-- Composición por Categoría -->
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <div class="chart-card-title">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
+                <span>Composición por Categoría</span>
+              </div>
+            </div>
+            <div class="svg-chart-container" style="padding: 0.5rem 0;">
+              ${compHtml}
+            </div>
+          </div>
+        </div>
+
+        <!-- Proyección Mensual -->
+        <div class="financial-analytics-panel" style="margin-top:1rem;">
+          <div class="card" style="padding: 1rem;">
+            <div style="font-weight:700; font-size:1.1rem; margin-bottom:0.5rem;">Proyección Mensual</div>
+            <div class="kpi-cards-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:0.75rem;">
+              ${proyHtml}
+            </div>
+            <div style="margin-top:0.75rem; font-size:0.8rem; color:var(--text-muted);">
+              Promedio de ventas mensuales: <strong>${formatNum(d.promedio_ventas_mensual_bs)} Bs</strong> · Ganancia promedio: <strong>${formatNum(d.promedio_ganancia_mensual_bs)} Bs</strong>
+            </div>
+          </div>
+        </div>
+      `;
     }
 
     async function actualizarTasaBCV(mostrarToast = false) {
@@ -1976,18 +2151,6 @@
         }
       } catch (e) {
         console.error("Error fiados:", e);
-      }
-    }
-
-    async function cargarFinanzas() {
-      try {
-        const res = await fetch("/api/finanzas");
-        if (res.ok) {
-          STATE.finanzas = await res.json();
-          renderFinanzas();
-        }
-      } catch (e) {
-        console.error("Error finanzas:", e);
       }
     }
 
@@ -2629,306 +2792,6 @@
       `;
     }
 
-    // 6. Render Finanzas Mensuales (Con Gráficos Visuales y Tabla Paginada 5/pág)
-    function onFinanzasSearch(term) {
-      PAGINATION.finanzas.search = term.trim().toLowerCase();
-      PAGINATION.finanzas.page = 1;
-      renderTablaFinanzas();
-    }
-
-    function cambiarPaginaFinanzas(p) {
-      PAGINATION.finanzas.page = p;
-      renderTablaFinanzas();
-    }
-
-    function renderFinanzas() {
-      renderGraficosFinanzas(STATE.finanzas);
-      renderTablaFinanzas();
-    }
-
-    function renderGraficosFinanzas(finanzas) {
-      const container = document.getElementById("finanzasAnalyticsContainer");
-      if (!container) return;
-
-      if (!finanzas || !finanzas.length) {
-        container.innerHTML = "";
-        return;
-      }
-
-      // 1. Cálculos de Ratios Financieros Globales
-      let totalComprado = 0;
-      let totalVendidoPagado = 0;
-      let totalFiado = 0;
-      let totalVendido = 0;
-      let costoVentas = 0;
-      let gananciaNeta = 0;
-      let porCategoria = {};
-
-      finanzas.forEach(f => {
-        const comp = f.total_comprado_bs || 0;
-        const ventPag = f.total_vendido_pagado_bs || 0;
-        const fiad = f.total_fiado_bs || 0;
-        const ventGen = f.total_vendido_general_bs || 0;
-        const costo = f.costo_ventas_bs || 0;
-        const gan = f.ganancia_bs || 0;
-
-        totalComprado += comp;
-        totalVendidoPagado += ventPag;
-        totalFiado += fiad;
-        totalVendido += ventGen;
-        costoVentas += costo;
-        gananciaNeta += gan;
-
-        const cat = f.categoria || "General";
-        if (!porCategoria[cat]) {
-          porCategoria[cat] = { ventas: 0, ganancia: 0, costo: 0, fiado: 0 };
-        }
-        porCategoria[cat].ventas += ventGen;
-        porCategoria[cat].ganancia += gan;
-        porCategoria[cat].costo += costo;
-        porCategoria[cat].fiado += fiad;
-      });
-
-      const margenNeto = totalVendido > 0 ? ((gananciaNeta / totalVendido) * 100).toFixed(1) : "0.0";
-      const tasaCobro = totalVendido > 0 ? ((totalVendidoPagado / totalVendido) * 100).toFixed(1) : "0.0";
-      const roi = costoVentas > 0 ? ((gananciaNeta / costoVentas) * 100).toFixed(1) : "0.0";
-      const gananciaUsd = STATE.tasaBcv > 0 ? (gananciaNeta / STATE.tasaBcv).toFixed(2) : "0.00";
-
-      // 2. Gráfico SVG de Barras (Desempeño Financiero)
-      const itemsGrafico = finanzas.slice(0, 6);
-      const maxVal = Math.max(...itemsGrafico.map(f => Math.max(f.total_vendido_general_bs || 0, f.costo_ventas_bs || 0, f.ganancia_bs || 0)), 1000);
-
-      const chartH = 190;
-      const chartW = 540;
-      const nItems = itemsGrafico.length || 1;
-      const groupWidth = (chartW - 40) / nItems;
-
-      const barsSvg = itemsGrafico.map((item, idx) => {
-        const xBase = 35 + idx * groupWidth + (groupWidth * 0.1);
-        const barW = Math.min(18, groupWidth * 0.22);
-        const space = 3;
-
-        const vH = Math.max(4, ((item.total_vendido_general_bs || 0) / maxVal) * (chartH - 45));
-        const cH = Math.max(4, ((item.costo_ventas_bs || 0) / maxVal) * (chartH - 45));
-        const gH = Math.max(4, ((item.ganancia_bs || 0) / maxVal) * (chartH - 45));
-
-        const yV = chartH - 25 - vH;
-        const yC = chartH - 25 - cH;
-        const yG = chartH - 25 - gH;
-
-        const label = `${item.mes.slice(5)} ${item.categoria.slice(0, 4)}`;
-
-        return `
-          <g class="chart-group">
-            <!-- Barra Ventas (Azul) -->
-            <rect x="${xBase}" y="${yV}" width="${barW}" height="${vH}" rx="3" fill="var(--info)">
-              <title>Ventas ${item.categoria} (${item.mes}): ${formatNum(item.total_vendido_general_bs)} Bs</title>
-            </rect>
-            <!-- Barra Costos (Subtle) -->
-            <rect x="${xBase + barW + space}" y="${yC}" width="${barW}" height="${cH}" rx="3" fill="var(--text-subtle)">
-              <title>Costo ${item.categoria} (${item.mes}): ${formatNum(item.costo_ventas_bs)} Bs</title>
-            </rect>
-            <!-- Barra Ganancia (Verde) -->
-            <rect x="${xBase + (barW + space) * 2}" y="${yG}" width="${barW}" height="${gH}" rx="3" fill="var(--success)">
-              <title>Ganancia Neta ${item.categoria} (${item.mes}): ${formatNum(item.ganancia_bs)} Bs</title>
-            </rect>
-            <!-- Etiqueta X -->
-            <text x="${xBase + (barW * 1.5) + space}" y="${chartH - 8}" text-anchor="middle" font-size="10" fill="var(--text-muted)" font-weight="600">${label}</text>
-          </g>
-        `;
-      }).join("");
-
-      // 3. Barras de Aporte por Categoría
-      const totalVentasCat = Object.values(porCategoria).reduce((a, b) => a + b.ventas, 0) || 1;
-      const catProgressHtml = Object.entries(porCategoria).map(([cat, val]) => {
-        const pctVentas = ((val.ventas / totalVentasCat) * 100).toFixed(1);
-        const pctGan = ((val.ganancia / (gananciaNeta || 1)) * 100).toFixed(1);
-        const color = cat === "Refresco" ? "var(--accent)" : "var(--info)";
-        return `
-          <div class="category-progress-item">
-            <div class="cat-prog-header">
-              <span>${cat}</span>
-              <span style="font-weight: 700; color: ${color};">${pctVentas}% de ventas (${formatNum(val.ventas)} Bs)</span>
-            </div>
-            <div class="cat-prog-track">
-              <div class="cat-prog-fill" style="width: ${pctVentas}%; background: ${color};"></div>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
-              <span>Ganancia: ${formatNum(val.ganancia)} Bs (${pctGan}%)</span>
-              <span>Fiado: ${formatNum(val.fiado)} Bs</span>
-            </div>
-          </div>
-        `;
-      }).join("");
-
-      // 4. Barra de Flujo de Cobro (Efectivo vs Fiados)
-      const pctPagado = totalVendido > 0 ? ((totalVendidoPagado / totalVendido) * 100).toFixed(1) : 0;
-      const pctFiado = totalVendido > 0 ? ((totalFiado / totalVendido) * 100).toFixed(1) : 0;
-
-      container.innerHTML = `
-        <!-- Fila 1: KPIs de Rendimiento Financiero -->
-        <div class="kpi-cards-grid">
-          <div class="kpi-card" style="border-left: 4px solid var(--success);">
-            <div class="kpi-label">
-              <span>Margen Neto</span>
-              <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
-            </div>
-            <div class="kpi-value" style="color: var(--success);">${margenNeto}%</div>
-            <div class="kpi-subtitle">Utilidad sobre ventas totales</div>
-          </div>
-
-          <div class="kpi-card" style="border-left: 4px solid var(--info);">
-            <div class="kpi-label">
-              <span>Efectividad Cobro</span>
-              <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-            </div>
-            <div class="kpi-value" style="color: var(--info);">${tasaCobro}%</div>
-            <div class="kpi-subtitle">${formatNum(totalVendidoPagado)} Bs cobrados</div>
-          </div>
-
-          <div class="kpi-card" style="border-left: 4px solid var(--accent);">
-            <div class="kpi-label">
-              <span>Retorno s/ Costo</span>
-              <svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
-            </div>
-            <div class="kpi-value" style="color: var(--accent);">${roi}%</div>
-            <div class="kpi-subtitle">Rendimiento sobre inversión</div>
-          </div>
-
-          <div class="kpi-card" style="border-left: 4px solid var(--success);">
-            <div class="kpi-label">
-              <span>Ganancia Neta Total</span>
-              <svg class="icon icon-sm" viewBox="0 0 24 24"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
-            </div>
-            <div class="kpi-value">${formatNum(gananciaNeta)} Bs</div>
-            <div class="kpi-subtitle" style="font-weight: 700; color: var(--accent);">$${gananciaUsd} USD (BCV)</div>
-          </div>
-        </div>
-
-        <!-- Fila 2: Gráficos Visuales de Crecimiento y Rendimiento -->
-        <div class="charts-row-grid">
-          <!-- Gráfico de Barras: Comparativa Mensual -->
-          <div class="chart-card">
-            <div class="chart-card-header">
-              <div class="chart-card-title">
-                <svg class="icon icon-md" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-                <span>Desempeño Financiero Mensual (Ventas vs Costos vs Ganancia)</span>
-              </div>
-              <div class="chart-legend">
-                <div class="legend-item"><div class="legend-color" style="background: var(--info);"></div><span>Ventas</span></div>
-                <div class="legend-item"><div class="legend-color" style="background: var(--text-subtle);"></div><span>Costo</span></div>
-                <div class="legend-item"><div class="legend-color" style="background: var(--success);"></div><span>Ganancia</span></div>
-              </div>
-            </div>
-            <div class="svg-chart-container">
-              <svg width="100%" height="210" viewBox="0 0 ${chartW} ${chartH}" preserveAspectRatio="xMidYMid meet">
-                <line x1="20" y1="30" x2="${chartW - 20}" y2="30" stroke="var(--border)" stroke-dasharray="3 3"/>
-                <line x1="20" y1="75" x2="${chartW - 20}" y2="75" stroke="var(--border)" stroke-dasharray="3 3"/>
-                <line x1="20" y1="120" x2="${chartW - 20}" y2="120" stroke="var(--border)" stroke-dasharray="3 3"/>
-                <line x1="20" y1="${chartH - 25}" x2="${chartW - 20}" y2="${chartH - 25}" stroke="var(--border)"/>
-                ${barsSvg}
-              </svg>
-            </div>
-          </div>
-
-          <!-- Gráfico Lateral: Aporte por Categoría y Liquidez -->
-          <div class="chart-card">
-            <div class="chart-card-header">
-              <div class="chart-card-title">
-                <svg class="icon icon-md" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
-                <span>Composición por Categoría</span>
-              </div>
-            </div>
-
-            <div>
-              ${catProgressHtml}
-            </div>
-
-            <div style="margin-top: 1.15rem; border-top: 1px solid var(--border); padding-top: 0.85rem;">
-              <div class="cat-prog-header">
-                <span>Estado de Cobro (Liquidez)</span>
-                <span style="font-weight: 700; color: var(--success);">${pctPagado}% Cobrado</span>
-              </div>
-              <div class="cat-prog-track" style="height: 12px;">
-                <div class="cat-prog-fill" style="width: ${pctPagado}%; background: var(--success);" title="Pagado: ${formatNum(totalVendidoPagado)} Bs"></div>
-                <div class="cat-prog-fill" style="width: ${pctFiado}%; background: var(--danger);" title="Fiado: ${formatNum(totalFiado)} Bs"></div>
-              </div>
-              <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem;">
-                <span style="color: var(--success); font-weight: 600;">Efectivo: ${formatNum(totalVendidoPagado)} Bs</span>
-                <span style="color: var(--danger); font-weight: 600;">Fiado: ${formatNum(totalFiado)} Bs (${pctFiado}%)</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
-    function renderTablaFinanzas() {
-      const wrapper = document.getElementById("finanzasTableWrapper");
-      const search = PAGINATION.finanzas.search;
-
-      const filtrados = STATE.finanzas.filter(f => {
-        if (!search) return true;
-        return (f.mes || "").toLowerCase().includes(search) || (f.categoria || "").toLowerCase().includes(search);
-      });
-
-      if (!filtrados.length) {
-        wrapper.innerHTML = `
-          <div class="state-box">
-            <div class="state-icon">${SVG.empty}</div>
-            <div class="state-title">${search ? 'No se encontraron registros con este filtro' : 'No hay datos financieros registrados'}</div>
-          </div>
-        `;
-        return;
-      }
-
-      const perPage = 5;
-      const totalPages = Math.max(1, Math.ceil(filtrados.length / perPage));
-      if (PAGINATION.finanzas.page > totalPages) PAGINATION.finanzas.page = totalPages;
-      if (PAGINATION.finanzas.page < 1) PAGINATION.finanzas.page = 1;
-
-      const curPage = PAGINATION.finanzas.page;
-      const startIdx = (curPage - 1) * perPage;
-      const pageItems = filtrados.slice(startIdx, startIdx + perPage);
-
-      wrapper.innerHTML = `
-        <table>
-          <thead>
-            <tr>
-              <th>Año-Mes</th>
-              <th>Categoría</th>
-              <th class="text-right">Total Comprado (Bs)</th>
-              <th class="text-right">Total Vendido Pagado (Bs)</th>
-              <th class="text-right">Total Fiado (Bs)</th>
-              <th class="text-right">Total Vendido General (Bs)</th>
-              <th class="text-right">Costo Ventas (Bs)</th>
-              <th class="text-right">Ganancia (Bs)</th>
-              <th class="text-right">Inversión Acumulada (Bs)</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${pageItems.map(f => `
-              <tr>
-                <td style="font-weight: 700;">${f.mes}</td>
-                <td><span class="badge badge-categoria">${f.categoria}</span></td>
-                <td class="text-right">${formatNum(f.total_comprado_bs)} Bs</td>
-                <td class="text-right" style="color: var(--success); font-weight: 600;">${formatNum(f.total_vendido_pagado_bs)} Bs</td>
-                <td class="text-right" style="color: var(--danger); font-weight: 600;">${formatNum(f.total_fiado_bs)} Bs</td>
-                <td class="text-right" style="font-weight: 600;">${formatNum(f.total_vendido_general_bs)} Bs</td>
-                <td class="text-right" style="color: var(--text-muted);">${formatNum(f.costo_ventas_bs)} Bs</td>
-                <td class="text-right" style="color: var(--success); font-weight: 700;">${formatNum(f.ganancia_bs)} Bs</td>
-                <td class="text-right" style="font-weight: 600; color: ${f.inversion_acumulada_bs >= 0 ? 'var(--text)' : 'var(--danger)'};">
-                  ${formatNum(f.inversion_acumulada_bs)} Bs
-                </td>
-              </tr>
-            `).join("")}
-          </tbody>
-        </table>
-        ${renderPaginationBar(curPage, totalPages, filtrados.length, 'cambiarPaginaFinanzas')}
-      `;
-    }
-
-    // -----------------------------------------------------------------------
     // Acciones de Negocio (Pagar, Eliminar, Editar Precios, Sincronizar)
     // -----------------------------------------------------------------------
     async function marcarComoPagado(movId) {
@@ -3043,25 +2906,6 @@
     function cerrarModal(modalId) {
       const el = document.getElementById(modalId);
       if (el) el.classList.remove("active");
-    }
-
-    async function sincronizarConEscritorio() {
-      if (!confirm("¿Desea sincronizar todos los datos desde el archivo Excel del escritorio?")) return;
-
-      mostrarNotificacion("Sincronizando datos con Excel del escritorio...", "info");
-      try {
-        const res = await fetch("/api/excel/importar", { method: "POST" });
-        if (res.ok) {
-          const data = await res.json();
-          mostrarNotificacion(data.mensaje || "Datos sincronizados exitosamente", "success");
-          await cargarTodo();
-        } else {
-          const err = await res.json();
-          mostrarNotificacion(`Error: ${err.detail || 'Fallo en la importación'}`, "danger");
-        }
-      } catch (e) {
-        mostrarNotificacion("Error de conexión al sincronizar", "danger");
-      }
     }
 
     // -----------------------------------------------------------------------

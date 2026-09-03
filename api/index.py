@@ -1,13 +1,11 @@
 """
 Inventario Casa - Backend FastAPI Optimizado (Python Nativo)
-Sistema de gestión de inventario, ventas, finanzas familiares y sincronización con Excel.
+Sistema de gestión de inventario, ventas y finanzas familiares.
 
 Características:
-  - Backend dual: SQLite local (desarrollo) + Turso cloud (producción/Vercel)
+  - Base de datos Turso cloud (misma en local y producción)
   - Consultas instantáneas con Row dict-like + foreign keys
   - Tasa BCV en tiempo real con fallback inteligente
-  - Mapeo exacto de reglas de negocio del Excel
-  - Importación y exportación bidireccional en formato .xlsx (openpyxl)
 """
 
 import os
@@ -20,15 +18,39 @@ from contextlib import contextmanager
 from typing import Optional, List, Dict, Any
 
 import httpx
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from openpyxl.utils import get_column_letter
+
+# ---------------------------------------------------------------------------
+# Cargar variables de entorno desde .env (local). En producción Vercel inyecta estas vars.
+# ---------------------------------------------------------------------------
+
+def _cargar_env_local(ruta_env=None):
+    """Carga variables de un archivo .env si no están ya en el entorno."""
+    if ruta_env is None:
+        ruta_env = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"
+        )
+    if not os.path.exists(ruta_env):
+        return
+    with open(ruta_env, "r", encoding="utf-8") as f:
+        for linea in f:
+            linea = linea.strip()
+            if not linea or linea.startswith("#") or "=" not in linea:
+                continue
+            clave, _, valor = linea.partition("=")
+            clave = clave.strip()
+            valor = valor.strip()
+            if len(valor) >= 2 and valor[0] == valor[-1] and valor[0] in ('"', "'"):
+                valor = valor[1:-1]
+            if clave and clave not in os.environ:
+                os.environ[clave] = valor
+
+_cargar_env_local()
 
 
 # ---------------------------------------------------------------------------
@@ -160,6 +182,26 @@ class _TursoConnection:
         pass
 
 
+class _LocalCursor:
+    """Cursor wrapper para SQLite local que expone _Row (igual que Turso)."""
+    def __init__(self, cursor):
+        self._cur = cursor
+        self.lastrowid = cursor.lastrowid
+        self.rowcount = cursor.rowcount
+    def fetchall(self):
+        rows = self._cur.fetchall()
+        cols = self._cur.description
+        names = [c[0] for c in cols] if cols else []
+        return [_Row(names, [r[i] for i in range(len(names))]) for r in rows]
+    def fetchone(self):
+        row = self._cur.fetchone()
+        cols = self._cur.description
+        names = [c[0] for c in cols] if cols else []
+        if row is None:
+            return None
+        return _Row(names, [row[i] for i in range(len(names))])
+
+
 class _LocalConnection:
     """Envoltorio para sqlite3 local (desarrollo)."""
     def __init__(self, path):
@@ -168,7 +210,7 @@ class _LocalConnection:
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA foreign_keys=ON")
     def execute(self, sql, params=()):
-        return self._conn.execute(sql, params)
+        return _LocalCursor(self._conn.execute(sql, params))
     def executemany(self, sql, params_list):
         return self._conn.executemany(sql, params_list)
     def commit(self):
@@ -234,9 +276,6 @@ def execute_sql(sql: str, params: tuple = ()) -> Dict[str, Any]:
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(BASE_DIR, "inventario_casa.db")
 PUBLIC_DIR = os.path.join(BASE_DIR, "public")
-EXCEL_DESKTOP_PATH = os.path.join(
-    os.path.expanduser("~"), "Desktop", "Inventario_Casa_Torres_Actualizado(2).xlsx"
-)
 
 app = FastAPI(
     title="Inventario Casa API",
@@ -297,7 +336,7 @@ SCHEMA_SQL = [
     """
 ]
 
-# Datos iniciales exactos del Excel para siembra si la BD está limpia
+# Datos iniciales para siembra si la BD está limpia
 PRODUCTOS_INICIALES = [
     ("Cola Negra",  "Refresco", 840.0, 1300.0),
     ("Fresh",       "Refresco", 840.0, 1300.0),
@@ -341,459 +380,8 @@ async def on_startup():
 
 
 # ---------------------------------------------------------------------------
-# Lógica de Importación y Exportación con Excel
+# Tasa BCV en tiempo real con fallback
 # ---------------------------------------------------------------------------
-
-def normalizar_fecha(val: Any) -> str:
-    """Convierte fechas de Excel o texto a formato YYYY-MM-DD."""
-    if not val:
-        return datetime.date.today().isoformat()
-    if isinstance(val, (datetime.datetime, datetime.date)):
-        return val.strftime("%Y-%m-%d")
-    val_str = str(val).strip()
-    if "/" in val_str:
-        parts = val_str.split("/")
-        if len(parts) == 3:
-            # DD/MM/YYYY
-            return f"{parts[2]}-{parts[1].zfill(2)}-{parts[0].zfill(2)}"
-    return val_str
-
-
-def importar_desde_excel_file(file_path_or_buffer, conn_externa=None):
-    """Lee y carga el catálogo y todos los movimientos desde un archivo Excel."""
-    wb = openpyxl.load_workbook(file_path_or_buffer, data_only=True)
-
-    # 1. Encontrar hoja de catálogo
-    ws_cat = None
-    for name in wb.sheetnames:
-        if "Cat" in name:
-            ws_cat = wb[name]
-            break
-
-    # 2. Encontrar hoja de movimientos
-    ws_mov = wb["Movimientos"] if "Movimientos" in wb.sheetnames else None
-
-    # Tasa BCV del Dashboard si existe
-    tasa_bcv_excel = 794.99
-    if "Dashboard" in wb.sheetnames:
-        ws_dash = wb["Dashboard"]
-        for r in range(1, 10):
-            c1 = ws_dash.cell(r, 1).value
-            if c1 and "Tasa BCV" in str(c1):
-                tasa_val = ws_dash.cell(r, 2).value
-                if tasa_val and isinstance(tasa_val, (int, float)):
-                    tasa_bcv_excel = float(tasa_val)
-                break
-
-    def _ejecutar(conn):
-        # Insertar o actualizar productos
-        prod_map = {}
-        if ws_cat:
-            for r in range(2, ws_cat.max_row + 1):
-                pnom = ws_cat.cell(r, 2).value
-                pcat = ws_cat.cell(r, 3).value
-                pcomp = ws_cat.cell(r, 4).value or 0
-                pvent = ws_cat.cell(r, 6).value or 0
-                if pnom:
-                    pnom_str = str(pnom).strip()
-                    pcat_str = str(pcat).strip() if pcat else "General"
-                    chk = conn.execute("SELECT id FROM productos WHERE nombre = ?", (pnom_str,)).fetchone()
-                    if chk:
-                        conn.execute(
-                            "UPDATE productos SET categoria = ?, precio_compra_actual = ?, precio_venta_actual = ? WHERE id = ?",
-                            (pcat_str, float(pcomp), float(pvent), chk["id"]),
-                        )
-                    else:
-                        conn.execute(
-                            "INSERT INTO productos (nombre, categoria, precio_compra_actual, precio_venta_actual) VALUES (?, ?, ?, ?)",
-                            (pnom_str, pcat_str, float(pcomp), float(pvent)),
-                        )
-
-        # Mapear productos a IDs
-        cur = conn.execute("SELECT id, nombre, precio_compra_actual, precio_venta_actual FROM productos")
-        for row in cur.fetchall():
-            prod_map[row["nombre"]] = dict(row)
-
-        # Limpiar movimientos e insertar los del Excel
-        if ws_mov:
-            conn.execute("DELETE FROM movimientos")
-            for r in range(2, ws_mov.max_row + 1):
-                fecha_raw = ws_mov.cell(r, 1).value
-                tipo = ws_mov.cell(r, 2).value
-                prod_nom = ws_mov.cell(r, 3).value
-                cant = ws_mov.cell(r, 4).value
-                cat = ws_mov.cell(r, 5).value
-                pu_bs = ws_mov.cell(r, 6).value
-                persona = ws_mov.cell(r, 9).value
-                pago = ws_mov.cell(r, 10).value
-                notas = ws_mov.cell(r, 11).value
-
-                if fecha_raw and tipo and prod_nom:
-                    prod_nom_str = str(prod_nom).strip()
-                    if prod_nom_str not in prod_map:
-                        conn.execute(
-                            "INSERT INTO productos (nombre, categoria, precio_compra_actual, precio_venta_actual) VALUES (?, ?, ?, ?)",
-                            (prod_nom_str, str(cat or "General").strip(), float(pu_bs or 0), float(pu_bs or 0)),
-                        )
-                        cur_p = conn.execute("SELECT id, nombre, precio_compra_actual, precio_venta_actual FROM productos WHERE nombre = ?", (prod_nom_str,))
-                        prod_map[prod_nom_str] = dict(cur_p.fetchone())
-
-                    prod_info = prod_map[prod_nom_str]
-                    fecha_norm = normalizar_fecha(fecha_raw)
-                    cant_int = int(cant or 0)
-                    tipo_str = str(tipo).strip()
-                    pu_val = float(pu_bs or 0)
-
-                    # Determinar costo y precio unitario
-                    if tipo_str == "Compra":
-                        costo_val = pu_val
-                        precio_val = prod_info["precio_venta_actual"]
-                    else:
-                        costo_val = prod_info["precio_compra_actual"]
-                        precio_val = pu_val
-
-                    conn.execute(
-                        """
-                        INSERT INTO movimientos (
-                            fecha, tipo, producto_id, cantidad,
-                            precio_unitario_bs, costo_unitario_bs,
-                            tasa_bcv, persona_proveedor, estado_pago, notas
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """,
-                        (
-                            fecha_norm,
-                            tipo_str,
-                            prod_info["id"],
-                            cant_int,
-                            precio_val,
-                            costo_val,
-                            tasa_bcv_excel,
-                            str(persona or "").strip(),
-                            str(pago or "Pagado").strip(),
-                            str(notas or "").strip(),
-                        ),
-                    )
-
-    if conn_externa:
-        _ejecutar(conn_externa)
-    else:
-        with get_db() as conn:
-            _ejecutar(conn)
-
-
-def generar_libro_excel(tasa_bcv: float) -> openpyxl.Workbook:
-    """Genera un archivo Excel profesional con las 4 hojas exactas del sistema."""
-    wb = openpyxl.Workbook()
-    wb.remove(wb.active)  # Eliminar hoja por defecto
-
-    # Estilos
-    header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
-    header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
-    title_font = Font(name="Calibri", size=14, bold=True, color="0F172A")
-    section_font = Font(name="Calibri", size=11, bold=True, color="0F172A")
-    bold_font = Font(name="Calibri", size=10, bold=True)
-    regular_font = Font(name="Calibri", size=10)
-    thin_border = Border(
-        left=Side(style="thin", color="CBD5E1"),
-        right=Side(style="thin", color="CBD5E1"),
-        top=Side(style="thin", color="CBD5E1"),
-        bottom=Side(style="thin", color="CBD5E1"),
-    )
-
-    # 1. Hoja Catálogo
-    ws_cat = wb.create_sheet(title="Catálogo")
-    cat_headers = ["ID", "Producto", "Categoría", "Precio Compra (Bs)", "Precio Compra (USD)", "Precio Venta (Bs)", "Precio Venta (USD)", "Stock"]
-    ws_cat.append(cat_headers)
-    for col_num in range(1, len(cat_headers) + 1):
-        cell = ws_cat.cell(1, col_num)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = Alignment(horizontal="center", vertical="center")
-
-    productos = query_all("SELECT * FROM productos ORDER BY categoria, id")
-    for row_idx, p in enumerate(productos, start=2):
-        ws_cat.append([
-            p["id"],
-            p["nombre"],
-            p["categoria"],
-            p["precio_compra_actual"],
-            f"=D{row_idx}/{tasa_bcv}",
-            p["precio_venta_actual"],
-            f"=F{row_idx}/{tasa_bcv}",
-            f'=SUMIFS(Movimientos!D:D,Movimientos!C:C,B{row_idx},Movimientos!B:B,"Compra")-SUMIFS(Movimientos!D:D,Movimientos!C:C,B{row_idx},Movimientos!B:B,"Venta")',
-        ])
-        for c in range(1, 9):
-            ws_cat.cell(row_idx, c).font = regular_font
-            ws_cat.cell(row_idx, c).border = thin_border
-
-    # 2. Hoja Movimientos
-    ws_mov = wb.create_sheet(title="Movimientos")
-    mov_headers = ["Fecha", "Tipo", "Producto", "Cantidad", "Categoría", "Precio Unitario (Bs)", "Total (Bs)", "Total (USD)", "Persona/Proveedor", "Estado Pago", "Notas"]
-    ws_mov.append(mov_headers)
-    for col_num in range(1, len(mov_headers) + 1):
-        cell = ws_mov.cell(1, col_num)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = Alignment(horizontal="center", vertical="center")
-
-    movimientos = query_all("""
-        SELECT m.*, p.nombre AS producto_nombre, p.categoria AS producto_categoria
-        FROM movimientos m
-        JOIN productos p ON m.producto_id = p.id
-        ORDER BY m.fecha ASC, m.id ASC
-    """)
-    for row_idx, m in enumerate(movimientos, start=2):
-        # Formato de fecha DD/MM/YYYY para Excel
-        try:
-            p_date = datetime.date.fromisoformat(m["fecha"])
-            fecha_excel = p_date.strftime("%d/%m/%Y")
-        except Exception:
-            fecha_excel = m["fecha"]
-
-        ws_mov.append([
-            fecha_excel,
-            m["tipo"],
-            m["producto_nombre"],
-            m["cantidad"],
-            m["producto_categoria"],
-            m["precio_unitario_bs"] if m["tipo"] == "Venta" else m["costo_unitario_bs"],
-            f"=D{row_idx}*F{row_idx}",
-            f"=G{row_idx}/{m['tasa_bcv'] if m['tasa_bcv'] > 0 else tasa_bcv}",
-            m["persona_proveedor"],
-            m["estado_pago"],
-            m["notas"],
-        ])
-        for c in range(1, 12):
-            ws_mov.cell(row_idx, c).font = regular_font
-            ws_mov.cell(row_idx, c).border = thin_border
-
-    # 3. Hoja Dashboard
-    ws_dash = wb.create_sheet(title="Dashboard")
-    ws_dash.cell(1, 1, "INVENTARIO CASA - DASHBOARD").font = title_font
-    ws_dash.cell(3, 1, "Fecha Actual:").font = bold_font
-    ws_dash.cell(3, 2, datetime.date.today().strftime("%d/%m/%Y")).font = regular_font
-    ws_dash.cell(4, 1, "Tasa BCV (Bs/USD):").font = bold_font
-    ws_dash.cell(4, 2, tasa_bcv).font = bold_font
-    ws_dash.cell(5, 1, "Enlace BCV:").font = bold_font
-    ws_dash.cell(5, 2, "https://www.bcv.org.ve/").font = regular_font
-
-    # Secciones por categoría
-    categorias = ["Refresco", "Cerveza"]
-    cur_r = 7
-    cat_ranges = {}
-
-    for cat in categorias:
-        plural = "REFRESCOS" if cat == "Refresco" else "CERVEZAS"
-        ws_dash.cell(cur_r, 1, f"STOCK DE {plural}").font = section_font
-        cur_r += 1
-        ws_dash.cell(cur_r, 1, "Producto").font = bold_font
-        ws_dash.cell(cur_r, 2, "Stock").font = bold_font
-        ws_dash.cell(cur_r, 3, "Valor Stock (Bs)").font = bold_font
-        ws_dash.cell(cur_r, 4, "Valor Stock (USD)").font = bold_font
-        cur_r += 1
-
-        start_cat_r = cur_r
-        prods_cat = [p for p in productos if p["categoria"] == cat]
-        for p in prods_cat:
-            ws_dash.cell(cur_r, 1, p["nombre"]).font = regular_font
-            ws_dash.cell(cur_r, 2, f'=SUMIFS(Movimientos!D:D,Movimientos!C:C,A{cur_r},Movimientos!B:B,"Compra")-SUMIFS(Movimientos!D:D,Movimientos!C:C,A{cur_r},Movimientos!B:B,"Venta")')
-            ws_dash.cell(cur_r, 3, f'=B{cur_r}*IFERROR(VLOOKUP(A{cur_r},Catálogo!B:F,5,FALSE),0)')
-            ws_dash.cell(cur_r, 4, f'=C{cur_r}/$B$4')
-            cur_r += 1
-        end_cat_r = cur_r - 1
-
-        # Total categoría
-        ws_dash.cell(cur_r, 1, f"TOTAL {plural}").font = bold_font
-        ws_dash.cell(cur_r, 2, f"=SUM(B{start_cat_r}:B{end_cat_r})").font = bold_font
-        ws_dash.cell(cur_r, 3, f"=SUM(C{start_cat_r}:C{end_cat_r})").font = bold_font
-        ws_dash.cell(cur_r, 4, f"=SUM(D{start_cat_r}:D{end_cat_r})").font = bold_font
-        cat_ranges[cat] = {"total_bs_cell": f"C{cur_r}", "prods": prods_cat}
-        cur_r += 2
-
-    # Resumen Financiero por Categoría
-    resumen_cells = {}
-    for cat in categorias:
-        plural = "REFRESCOS" if cat == "Refresco" else "CERVEZAS"
-        ws_dash.cell(cur_r, 1, f"RESUMEN FINANCIERO - {plural}").font = section_font
-        cur_r += 1
-        ws_dash.cell(cur_r, 1, "Concepto").font = bold_font
-        ws_dash.cell(cur_r, 2, "Monto (Bs)").font = bold_font
-        ws_dash.cell(cur_r, 3, "Monto (USD)").font = bold_font
-        ws_dash.cell(cur_r, 4, "Detalle").font = bold_font
-        cur_r += 1
-
-        # Invertido
-        r_inv = cur_r
-        ws_dash.cell(cur_r, 1, "Total Invertido").font = regular_font
-        ws_dash.cell(cur_r, 2, f'=SUMIFS(Movimientos!G:G,Movimientos!B:B,"Compra",Movimientos!E:E,"{cat}")')
-        ws_dash.cell(cur_r, 3, f"=B{cur_r}/$B$4")
-        ws_dash.cell(cur_r, 4, f"Compras de {cat.lower()}s").font = regular_font
-        cur_r += 1
-
-        # Fiado
-        ws_dash.cell(cur_r, 1, "Total Fiado (Pendiente)").font = regular_font
-        ws_dash.cell(cur_r, 2, f'=SUMIFS(Movimientos!G:G,Movimientos!B:B,"Venta",Movimientos!E:E,"{cat}",Movimientos!J:J,"Fiado")')
-        ws_dash.cell(cur_r, 3, f"=B{cur_r}/$B$4")
-        ws_dash.cell(cur_r, 4, f"Deuda clientes {cat.lower()}s").font = regular_font
-        cur_r += 1
-
-        # Vendido Pagado
-        ws_dash.cell(cur_r, 1, "Total Vendido (Pagado)").font = regular_font
-        ws_dash.cell(cur_r, 2, f'=SUMIFS(Movimientos!G:G,Movimientos!B:B,"Venta",Movimientos!E:E,"{cat}",Movimientos!J:J,"Pagado")')
-        ws_dash.cell(cur_r, 3, f"=B{cur_r}/$B$4")
-        ws_dash.cell(cur_r, 4, f"Ventas pagadas {cat.lower()}s").font = regular_font
-        cur_r += 1
-
-        # Vendido General
-        ws_dash.cell(cur_r, 1, "Total Vendido (General)").font = regular_font
-        ws_dash.cell(cur_r, 2, f'=SUMIFS(Movimientos!G:G,Movimientos!B:B,"Venta",Movimientos!E:E,"{cat}")')
-        ws_dash.cell(cur_r, 3, f"=B{cur_r}/$B$4")
-        ws_dash.cell(cur_r, 4, f"Todas las ventas {cat.lower()}s").font = regular_font
-        cur_r += 1
-
-        # Ganancia General
-        # Sumar ganancias por cada producto
-        prods_cat = cat_ranges[cat]["prods"]
-        gan_parts = []
-        for p in prods_cat:
-            gan_parts.append(
-                f'SUMIFS(Movimientos!G:G,Movimientos!B:B,"Venta",Movimientos!E:E,"{cat}",Movimientos!C:C,"{p["nombre"]}")-SUMIFS(Movimientos!D:D,Movimientos!B:B,"Venta",Movimientos!E:E,"{cat}",Movimientos!C:C,"{p["nombre"]}")*IFERROR(VLOOKUP("{p["nombre"]}",Catálogo!B:D,3,FALSE),0)'
-            )
-        gan_formula = "=" + "+".join(gan_parts) if gan_parts else "=0"
-
-        r_gan = cur_r
-        ws_dash.cell(cur_r, 1, "Ganancia General").font = bold_font
-        ws_dash.cell(cur_r, 2, gan_formula).font = bold_font
-        ws_dash.cell(cur_r, 3, f"=B{cur_r}/$B$4").font = bold_font
-        ws_dash.cell(cur_r, 4, f"Ventas - Costo ({cat.lower()}s)").font = regular_font
-        resumen_cells[f"gan_{cat}"] = f"B{cur_r}"
-        cur_r += 1
-
-        # Valor Stock Actual
-        ws_dash.cell(cur_r, 1, "Valor Stock Actual").font = bold_font
-        ws_dash.cell(cur_r, 2, f"={cat_ranges[cat]['total_bs_cell']}").font = bold_font
-        ws_dash.cell(cur_r, 3, f"=B{cur_r}/$B$4").font = bold_font
-        ws_dash.cell(cur_r, 4, f"Valor stock actual {cat.lower()}s").font = regular_font
-        resumen_cells[f"stock_{cat}"] = f"B{cur_r}"
-        cur_r += 2
-
-    # Resumen General Consolidado
-    ws_dash.cell(cur_r, 1, "RESUMEN GENERAL").font = section_font
-    cur_r += 1
-    ws_dash.cell(cur_r, 1, "Concepto").font = bold_font
-    ws_dash.cell(cur_r, 2, "Monto (Bs)").font = bold_font
-    ws_dash.cell(cur_r, 3, "Monto (USD)").font = bold_font
-    ws_dash.cell(cur_r, 4, "Detalle").font = bold_font
-    cur_r += 1
-
-    # Ganancia Neta General
-    ws_dash.cell(cur_r, 1, "GANANCIA NETA GENERAL").font = bold_font
-    ws_dash.cell(cur_r, 2, f"={resumen_cells['gan_Refresco']}+{resumen_cells['gan_Cerveza']}").font = bold_font
-    ws_dash.cell(cur_r, 3, f"=B{cur_r}/$B$4").font = bold_font
-    ws_dash.cell(cur_r, 4, "Total ganado").font = regular_font
-    cur_r += 1
-
-    # Total General Valor Inventario
-    ws_dash.cell(cur_r, 1, "TOTAL GENERAL (Valor Inventario)").font = bold_font
-    ws_dash.cell(cur_r, 2, f"={resumen_cells['stock_Refresco']}+{resumen_cells['stock_Cerveza']}").font = bold_font
-    ws_dash.cell(cur_r, 3, f"=B{cur_r}/$B$4").font = bold_font
-    ws_dash.cell(cur_r, 4, "Valor total del inventario").font = regular_font
-
-    # 4. Hoja Finanzas Mensuales
-    ws_fin = wb.create_sheet(title="Finanzas")
-    ws_fin.cell(1, 1, "CONTROL FINANCIERO MENSUAL").font = title_font
-
-    cur_fin_r = 3
-    meses_disponibles = ["2026-08", "2026-09", "2026-10", "2026-11", "2026-12"]
-
-    for cat in categorias:
-        plural = "REFRESCOS" if cat == "Refresco" else "CERVEZAS"
-        ws_fin.cell(cur_fin_r, 1, f"{plural} - MENSUAL").font = section_font
-        cur_fin_r += 1
-        fin_cols = ["Año-Mes", "Total Comprado (Bs)", "Total Vendido Pagado (Bs)", "Total Fiado (Bs)", "Total Vendido General (Bs)", "Costo Ventas (Bs)", "Ganancia (Bs)", "Inversión Acumulada (Bs)"]
-        for i, h in enumerate(fin_cols, start=1):
-            cell = ws_fin.cell(cur_fin_r, i, h)
-            cell.font = bold_font
-            cell.fill = PatternFill(start_color="F1F5F9", end_color="F1F5F9", fill_type="solid")
-        cur_fin_r += 1
-
-        for mes in meses_disponibles:
-            ws_fin.cell(cur_fin_r, 1, mes).font = regular_font
-            ws_fin.cell(cur_fin_r, 2, f'=SUMIFS(Movimientos!G:G,Movimientos!B:B,"Compra",Movimientos!E:E,"{cat}")')
-            ws_fin.cell(cur_fin_r, 3, f'=SUMIFS(Movimientos!G:G,Movimientos!B:B,"Venta",Movimientos!E:E,"{cat}",Movimientos!J:J,"Pagado")')
-            ws_fin.cell(cur_fin_r, 4, f'=SUMIFS(Movimientos!G:G,Movimientos!B:B,"Venta",Movimientos!E:E,"{cat}",Movimientos!J:J,"Fiado")')
-            ws_fin.cell(cur_fin_r, 5, f'=SUMIFS(Movimientos!G:G,Movimientos!B:B,"Venta",Movimientos!E:E,"{cat}")')
-            ws_fin.cell(cur_fin_r, 6, f'=E{cur_fin_r}-G{cur_fin_r}')
-            ws_fin.cell(cur_fin_r, 7, f'=E{cur_fin_r}-F{cur_fin_r}')
-            ws_fin.cell(cur_fin_r, 8, f'=B{cur_fin_r}-E{cur_fin_r}')
-            cur_fin_r += 1
-        cur_fin_r += 2
-
-    # Ajustar anchos de columnas
-    for ws in wb.worksheets:
-        for col in ws.columns:
-            max_len = 0
-            col_letter = get_column_letter(col[0].column)
-            for cell in col:
-                val_str = str(cell.value or "")
-                if len(val_str) > max_len and not val_str.startswith("="):
-                    max_len = len(val_str)
-            ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
-
-    return wb
-
-
-# ---------------------------------------------------------------------------
-# Modelos Pydantic para la API
-# ---------------------------------------------------------------------------
-
-class ProductoCreate(BaseModel):
-    nombre: str
-    categoria: str
-    precio_compra_actual: float
-    precio_venta_actual: float
-
-
-class ProductoUpdate(BaseModel):
-    precio_compra_actual: float
-    precio_venta_actual: float
-    categoria: Optional[str] = None
-
-
-class MovimientoCreate(BaseModel):
-    fecha: Optional[str] = None
-    tipo: str
-    producto_id: int
-    cantidad: int
-    tasa_bcv: Optional[float] = None
-    precio_unitario_bs: Optional[float] = None
-    persona_proveedor: Optional[str] = ""
-    estado_pago: str
-    notas: Optional[str] = ""
-
-
-class MovimientoUpdate(BaseModel):
-    fecha: str
-    tipo: str
-    producto_id: int
-    cantidad: int
-    precio_unitario_bs: float
-    costo_unitario_bs: float
-    tasa_bcv: float
-    persona_proveedor: str
-    estado_pago: str
-    notas: str
-
-
-# ---------------------------------------------------------------------------
-# Endpoints de la API
-# ---------------------------------------------------------------------------
-
-# Cache en memoria para evitar saturar el portal del BCV en cada petición
-_BCV_CACHE = {
-    "data": None,
-    "timestamp": 0.0,
-}
 
 BCV_URL = "https://www.bcv.org.ve/"
 BCV_HEADERS = {
@@ -862,6 +450,13 @@ async def scrape_bcv_directo() -> Optional[Dict[str, Any]]:
     return None
 
 
+# Cache en memoria para evitar saturar el portal del BCV en cada petición
+_BCV_CACHE = {
+    "data": None,
+    "timestamp": 0.0,
+}
+
+
 @app.get("/api/bcv")
 async def get_bcv(refresh: bool = False):
     """
@@ -910,6 +505,48 @@ async def get_bcv(refresh: bool = False):
         "nombre": "Dólar BCV (Último registrado)",
         "fuente": "Historial Local",
     }
+
+
+# ---------------------------------------------------------------------------
+# Modelos Pydantic para la API
+# ---------------------------------------------------------------------------
+
+class ProductoCreate(BaseModel):
+    nombre: str
+    categoria: str
+    precio_compra_actual: float
+    precio_venta_actual: float
+
+
+class ProductoUpdate(BaseModel):
+    precio_compra_actual: float
+    precio_venta_actual: float
+    categoria: Optional[str] = None
+
+
+class MovimientoCreate(BaseModel):
+    fecha: Optional[str] = None
+    tipo: str
+    producto_id: int
+    cantidad: int
+    tasa_bcv: Optional[float] = None
+    precio_unitario_bs: Optional[float] = None
+    persona_proveedor: Optional[str] = ""
+    estado_pago: str
+    notas: Optional[str] = ""
+
+
+class MovimientoUpdate(BaseModel):
+    fecha: str
+    tipo: str
+    producto_id: int
+    cantidad: int
+    precio_unitario_bs: float
+    costo_unitario_bs: float
+    tasa_bcv: float
+    persona_proveedor: str
+    estado_pago: str
+    notas: str
 
 
 @app.get("/api/productos")
@@ -1166,7 +803,7 @@ async def get_fiados():
 @app.get("/api/dashboard")
 async def get_dashboard():
     """
-    Retorna todas las métricas del sistema calculadas exactamente como en la hoja Dashboard del Excel:
+    Retorna todas las métricas del sistema:
     - Tasa BCV
     - Stock por producto y por categoría (Refrescos, Cervezas)
     - Resumen financiero por categoría (Invertido, Fiado, Vendido Pagado, Vendido General, Ganancia General, Valor Stock)
@@ -1332,48 +969,253 @@ async def get_finanzas():
     return resultado
 
 
-@app.post("/api/excel/importar")
-async def importar_excel(file: Optional[UploadFile] = File(None)):
-    """Importa el catálogo y movimientos desde un archivo subido o directo del escritorio."""
-    try:
-        if file:
-            importar_desde_excel_file(file.file)
-            origen = f"archivo subido ({file.filename})"
-        else:
-            if not os.path.exists(EXCEL_DESKTOP_PATH):
-                raise HTTPException(404, detail=f"No se encontró el archivo en {EXCEL_DESKTOP_PATH}")
-            importar_desde_excel_file(EXCEL_DESKTOP_PATH)
-            origen = f"escritorio ({EXCEL_DESKTOP_PATH})"
-
-        prod_count = query_one("SELECT COUNT(*) AS cnt FROM productos")["cnt"]
-        mov_count = query_one("SELECT COUNT(*) AS cnt FROM movimientos")["cnt"]
-
-        return {
-            "mensaje": f"Sincronización completada exitosamente desde {origen}",
-            "productos_totales": prod_count,
-            "movimientos_totales": mov_count,
-        }
-    except Exception as e:
-        raise HTTPException(500, detail=f"Error importando Excel: {str(e)}")
-
-
-@app.get("/api/excel/exportar")
-async def exportar_excel():
-    """Genera y descarga el archivo Excel con las 4 hojas exactas del sistema."""
+@app.get("/api/banco")
+async def get_banco():
+    """
+    Dashboard de Flujo de Caja y Conciliación Bancaria:
+    - Saldo bancario esperado (entradas pagadas - salidas pagadas)
+    - Top productos por unidades vendidas (porcentaje)
+    - Proyección mensual de ventas, ganancia y saldo
+    """
     bcv_res = await get_bcv()
     tasa_bcv = bcv_res["tasa"]
 
-    wb = generar_libro_excel(tasa_bcv)
+    # 1. Flujo de caja: entradas (ventas pagadas) - salidas (compras pagadas), por MES y CUENTA
+    sql_flujo = """
+        SELECT
+            STRFTIME('%Y-%m', m.fecha) AS mes,
+            p.categoria,
+            ROUND(SUM(CASE WHEN m.tipo = 'Venta' AND m.estado_pago = 'Pagado'
+                           THEN m.cantidad * m.precio_unitario_bs ELSE 0 END), 2) AS entradas_bs,
+            ROUND(SUM(CASE WHEN m.tipo = 'Compra' AND m.estado_pago = 'Pagado'
+                           THEN m.cantidad * m.costo_unitario_bs ELSE 0 END), 2) AS salidas_bs,
+            ROUND(SUM(CASE WHEN m.tipo = 'Venta' AND m.estado_pago = 'Fiado'
+                           THEN m.cantidad * m.precio_unitario_bs ELSE 0 END), 2) AS fiado_bs,
+            ROUND(SUM(CASE WHEN m.tipo = 'Venta'
+                           THEN m.cantidad * m.precio_unitario_bs ELSE 0 END), 2) AS ventas_totales_bs,
+            ROUND(SUM(CASE WHEN m.tipo = 'Venta'
+                           THEN m.cantidad * m.costo_unitario_bs ELSE 0 END), 2) AS costo_ventas_bs
+        FROM movimientos m
+        JOIN productos p ON m.producto_id = p.id
+        GROUP BY mes, p.categoria
+    """
+    flujo_rows = query_all(sql_flujo)
 
-    temp_path = os.path.join(BASE_DIR, "temp_inventario.xlsx")
-    wb.save(temp_path)
+    # Totales generales
+    entradas = 0.0
+    salidas = 0.0
+    fiado = 0.0
+    ventas_totales = 0.0
+    costo_ventas = 0.0
 
-    filename = f"Inventario_Casa_{datetime.date.today().strftime('%Y%m%d')}.xlsx"
-    return FileResponse(
-        temp_path,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        filename=filename,
+    # Agrupar por mes, y dentro de cada mes por cuenta
+    conciliacion_mensual = {}  # mes -> {cuentas: [...], entradas, salidas, saldo}
+    for r in flujo_rows:
+        mes = r["mes"]
+        cat = r["categoria"]
+        e = r["entradas_bs"] or 0.0
+        s = r["salidas_bs"] or 0.0
+        f = r["fiado_bs"] or 0.0
+        vt = r["ventas_totales_bs"] or 0.0
+        cv = r["costo_ventas_bs"] or 0.0
+        saldo = round(e - s, 2)
+        entradas += e
+        salidas += s
+        fiado += f
+        ventas_totales += vt
+        costo_ventas += cv
+
+        if mes not in conciliacion_mensual:
+            conciliacion_mensual[mes] = {
+                "mes": mes,
+                "entradas_bs": 0.0,
+                "salidas_bs": 0.0,
+                "saldo_bs": 0.0,
+                "cuentas": [],
+            }
+        conciliacion_mensual[mes]["entradas_bs"] += e
+        conciliacion_mensual[mes]["salidas_bs"] += s
+        conciliacion_mensual[mes]["saldo_bs"] += saldo
+        conciliacion_mensual[mes]["cuentas"].append({
+            "cuenta": cat,
+            "entradas_bs": e,
+            "entradas_usd": round(e / tasa_bcv, 2) if tasa_bcv > 0 else 0.0,
+            "salidas_bs": s,
+            "salidas_usd": round(s / tasa_bcv, 2) if tasa_bcv > 0 else 0.0,
+            "fiado_bs": f,
+            "fiado_usd": round(f / tasa_bcv, 2) if tasa_bcv > 0 else 0.0,
+            "saldo_bs": saldo,
+            "saldo_usd": round(saldo / tasa_bcv, 2) if tasa_bcv > 0 else 0.0,
+        })
+
+    # Convertir a lista ordenada (mes más reciente primero) y con el saldo USD
+    conciliacion_mensual_list = sorted(
+        conciliacion_mensual.values(),
+        key=lambda x: x["mes"],
+        reverse=True,
     )
+    for m in conciliacion_mensual_list:
+        m["entradas_usd"] = round(m["entradas_bs"] / tasa_bcv, 2) if tasa_bcv > 0 else 0.0
+        m["salidas_usd"] = round(m["salidas_bs"] / tasa_bcv, 2) if tasa_bcv > 0 else 0.0
+        m["saldo_usd"] = round(m["saldo_bs"] / tasa_bcv, 2) if tasa_bcv > 0 else 0.0
+
+    # También exponer "cuentas" agregado global (total por categoría sin mes)
+    cuentas_global = {}
+    for m in conciliacion_mensual_list:
+        for cu in m["cuentas"]:
+            if cu["cuenta"] not in cuentas_global:
+                cuentas_global[cu["cuenta"]] = {
+                    "cuenta": cu["cuenta"],
+                    "entradas_bs": 0.0, "salidas_bs": 0.0, "fiado_bs": 0.0, "saldo_bs": 0.0,
+                }
+            cuentas_global[cu["cuenta"]]["entradas_bs"] += cu["entradas_bs"]
+            cuentas_global[cu["cuenta"]]["salidas_bs"] += cu["salidas_bs"]
+            cuentas_global[cu["cuenta"]]["fiado_bs"] += cu["fiado_bs"]
+            cuentas_global[cu["cuenta"]]["saldo_bs"] += cu["saldo_bs"]
+    for cu in cuentas_global.values():
+        cu["entradas_usd"] = round(cu["entradas_bs"] / tasa_bcv, 2) if tasa_bcv > 0 else 0.0
+        cu["salidas_usd"] = round(cu["salidas_bs"] / tasa_bcv, 2) if tasa_bcv > 0 else 0.0
+        cu["saldo_usd"] = round(cu["saldo_bs"] / tasa_bcv, 2) if tasa_bcv > 0 else 0.0
+    cuentas = list(cuentas_global.values())
+
+    saldo_banco = round(entradas - salidas, 2)
+    ganancia_total = round(ventas_totales - costo_ventas, 2)
+    margen_neto = round((ganancia_total / ventas_totales) * 100, 1) if ventas_totales > 0 else 0.0
+    tasa_cobro = round((entradas / (entradas + fiado)) * 100, 1) if (entradas + fiado) > 0 else 0.0
+    roi = round((ganancia_total / salidas) * 100, 1) if salidas > 0 else 0.0
+
+    # 2. Top productos vendidos por porcentaje (unidades)
+    sql_top = """
+        SELECT
+            p.nombre,
+            p.categoria,
+            SUM(CASE WHEN m.tipo = 'Venta' THEN m.cantidad ELSE 0 END) AS unidades_vendidas,
+            ROUND(SUM(CASE WHEN m.tipo = 'Venta' THEN m.cantidad * m.precio_unitario_bs ELSE 0 END), 2) AS ingresos_bs
+        FROM productos p
+        LEFT JOIN movimientos m ON p.id = m.producto_id
+        GROUP BY p.id, p.nombre, p.categoria
+        HAVING unidades_vendidas > 0
+        ORDER BY unidades_vendidas DESC
+    """
+    top_rows = query_all(sql_top)
+    total_unidades = sum(r["unidades_vendidas"] or 0 for r in top_rows) or 1
+
+    top_productos = []
+    for r in top_rows:
+        unidades = r["unidades_vendidas"] or 0
+        ingresos = r["ingresos_bs"] or 0.0
+        top_productos.append({
+            "nombre": r["nombre"],
+            "categoria": r["categoria"],
+            "unidades_vendidas": unidades,
+            "ingresos_bs": ingresos,
+            "ingresos_usd": round(ingresos / tasa_bcv, 2) if tasa_bcv > 0 else 0.0,
+            "porcentaje": round((unidades / total_unidades) * 100, 1),
+            "porcentaje_ingresos": round((ingresos / (sum(x["ingresos_bs"] for x in top_rows) or 1)) * 100, 1),
+        })
+
+    # 3. Proyección mensual (ventas/fiados por mes + tendencia)
+    sql_mensual = """
+        SELECT
+            STRFTIME('%Y-%m', m.fecha) AS mes,
+            ROUND(SUM(CASE WHEN m.tipo = 'Venta' AND m.estado_pago = 'Pagado'
+                           THEN m.cantidad * m.precio_unitario_bs ELSE 0 END), 2) AS ventas_pagadas_bs,
+            ROUND(SUM(CASE WHEN m.tipo = 'Venta' AND m.estado_pago = 'Fiado'
+                           THEN m.cantidad * m.precio_unitario_bs ELSE 0 END), 2) AS ventas_fiado_bs,
+            ROUND(SUM(CASE WHEN m.tipo = 'Compra' AND m.estado_pago = 'Pagado'
+                           THEN m.cantidad * m.costo_unitario_bs ELSE 0 END), 2) AS compras_bs,
+            ROUND(SUM(CASE WHEN m.tipo = 'Venta'
+                           THEN m.cantidad * (m.precio_unitario_bs - m.costo_unitario_bs) ELSE 0 END), 2) AS ganancia_bs
+        FROM movimientos m
+        GROUP BY mes
+        ORDER BY mes
+    """
+    mensual_rows = query_all(sql_mensual)
+
+    # Construir proyección: usar el promedio de ventas pagadas de los meses con datos
+    ventas_mensuales = [r["ventas_pagadas_bs"] or 0 for r in mensual_rows if (r["ventas_pagadas_bs"] or 0) > 0]
+    promedio_ventas = round(sum(ventas_mensuales) / len(ventas_mensuales), 2) if ventas_mensuales else 0.0
+    promedio_ganancia = round(sum(r["ganancia_bs"] or 0 for r in mensual_rows) / max(len(mensual_rows), 1), 2) if mensual_rows else 0.0
+
+    # Proyección a 3 meses
+    hoy = datetime.date.today()
+    proyeccion = []
+    saldo_proy = saldo_banco
+    for i in range(1, 4):
+        mes_proy = (hoy.replace(day=28) + datetime.timedelta(days=30 * i)).strftime("%Y-%m")
+        proy_saldo = round(saldo_proy + promedio_ventas, 2)
+        proyeccion.append({
+            "mes": mes_proy,
+            "ventas_proyectadas_bs": promedio_ventas,
+            "ganancia_proyectada_bs": promedio_ganancia,
+            "saldo_proyectado_bs": proy_saldo,
+            "saldo_proyectado_usd": round(proy_saldo / tasa_bcv, 2) if tasa_bcv > 0 else 0.0,
+        })
+        saldo_proy = proy_saldo
+
+    # Serie mensual para el gráfico de línea proyectado (históricos + proyección)
+    serie_mensual = []
+    for r in mensual_rows:
+        serie_mensual.append({
+            "mes": r["mes"],
+            "ventas_bs": r["ventas_pagadas_bs"] or 0.0,
+            "compras_bs": r["compras_bs"] or 0.0,
+            "ganancia_bs": r["ganancia_bs"] or 0.0,
+            "proyeccion": False,
+        })
+    # Agregar proyecciones a la serie
+    for p in proyeccion:
+        serie_mensual.append({
+            "mes": p["mes"],
+            "ventas_bs": p["ventas_proyectadas_bs"],
+            "compras_bs": None,
+            "ganancia_bs": p["ganancia_proyectada_bs"],
+            "proyeccion": True,
+        })
+
+    # Composición de ventas por categoría
+    comp = {}
+    for tp in top_productos:
+        cat = tp["categoria"]
+        if cat not in comp:
+            comp[cat] = {"categoria": cat, "ventas_bs": 0.0, "cantidad": 0}
+        comp[cat]["ventas_bs"] += tp["ingresos_bs"]
+        comp[cat]["cantidad"] += tp["unidades_vendidas"]
+    for c in comp.values():
+        c["porcentaje"] = round((c["ventas_bs"] / (ventas_totales or 1)) * 100, 1)
+    composicion_categorias = list(comp.values())
+
+    return {
+        "tasa_bcv": tasa_bcv,
+        "cuentas": cuentas,
+        "conciliacion_mensual": conciliacion_mensual_list,
+        "flujo_caja": {
+            "entradas_bs": entradas,
+            "entradas_usd": round(entradas / tasa_bcv, 2) if tasa_bcv > 0 else 0.0,
+            "salidas_bs": salidas,
+            "salidas_usd": round(salidas / tasa_bcv, 2) if tasa_bcv > 0 else 0.0,
+            "fiado_bs": fiado,
+            "fiado_usd": round(fiado / tasa_bcv, 2) if tasa_bcv > 0 else 0.0,
+            "saldo_banco_bs": saldo_banco,
+            "saldo_banco_usd": round(saldo_banco / tasa_bcv, 2) if tasa_bcv > 0 else 0.0,
+            "ventas_totales_bs": ventas_totales,
+            "ganancia_total_bs": ganancia_total,
+        },
+        "ratios": {
+            "margen_neto": margen_neto,
+            "efectividad_cobro": tasa_cobro,
+            "roi": roi,
+            "ganancia_neta_bs": ganancia_total,
+            "ganancia_neta_usd": round(ganancia_total / tasa_bcv, 2) if tasa_bcv > 0 else 0.0,
+        },
+        "top_productos": top_productos,
+        "composicion_categorias": composicion_categorias,
+        "proyeccion_mensual": proyeccion,
+        "serie_mensual": serie_mensual,
+        "promedio_ventas_mensual_bs": promedio_ventas,
+        "promedio_ganancia_mensual_bs": promedio_ganancia,
+    }
+
 
 
 # ---------------------------------------------------------------------------
