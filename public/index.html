@@ -1,0 +1,3065 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Inventario Casa - Sistema integral de gestión de inventario, ventas y finanzas familiares" />
+  <title>Inventario Casa</title>
+
+  <!-- Google Fonts: Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    /* -------------------------------------------------------------------------
+       Variables de Diseño - Light Mode First & Dark Mode
+    ------------------------------------------------------------------------- */
+    :root {
+      --bg: #fafafa;
+      --bg-surface: #ffffff;
+      --bg-card: #ffffff;
+      --bg-alt: #f4f4f5;
+      --border: #e4e4e7;
+      --border-subtle: #f4f4f5;
+      --text: #18181b;
+      --text-muted: #71717a;
+      --text-subtle: #a1a1aa;
+      --accent: #d97706;
+      --accent-hover: #b45309;
+      --accent-light: #fef3c7;
+      --accent-text: #92400e;
+      --success: #16a34a;
+      --success-light: #dcfce7;
+      --success-text: #15803d;
+      --danger: #dc2626;
+      --danger-light: #fee2e2;
+      --danger-text: #b91c1c;
+      --info: #0284c7;
+      --info-light: #e0f2fe;
+      --info-text: #0369a1;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+
+    [data-theme="dark"] {
+      --bg: #09090b;
+      --bg-surface: #121215;
+      --bg-card: #18181b;
+      --bg-alt: #27272a;
+      --border: #27272a;
+      --border-subtle: #1f1f23;
+      --text: #f4f4f5;
+      --text-muted: #a1a1aa;
+      --text-subtle: #71717a;
+      --accent: #f59e0b;
+      --accent-hover: #d97706;
+      --accent-light: #302008;
+      --accent-text: #fcd34d;
+      --success: #22c55e;
+      --success-light: #052e16;
+      --success-text: #86efac;
+      --danger: #ef4444;
+      --danger-light: #450a0a;
+      --danger-text: #fca5a5;
+      --info: #38bdf8;
+      --info-light: #082f49;
+      --info-text: #7dd3fc;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+      --shadow-lg: 0 10px 20px -3px rgba(0, 0, 0, 0.5);
+    }
+
+    /* -------------------------------------------------------------------------
+       Resets y Estilos Base
+    ------------------------------------------------------------------------- */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+      transition: background-color 0.2s ease, color 0.2s ease;
+      overflow-x: hidden;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-alt); }
+    ::-webkit-scrollbar-thumb { background: var(--text-subtle); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    /* -------------------------------------------------------------------------
+       Sistema de Iconos Vectoriales (SVG)
+    ------------------------------------------------------------------------- */
+    .icon {
+      width: 18px;
+      height: 18px;
+      display: inline-block;
+      vertical-align: middle;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+      flex-shrink: 0;
+    }
+    .icon-sm { width: 14px; height: 14px; }
+    .icon-md { width: 16px; height: 16px; }
+    .icon-lg { width: 22px; height: 22px; }
+    .icon-xl { width: 38px; height: 38px; stroke-width: 1.5; }
+
+    /* -------------------------------------------------------------------------
+       Layout con Sidebar Izquierdo
+    ------------------------------------------------------------------------- */
+    .app-layout {
+      display: flex;
+      min-height: 100vh;
+      width: 100%;
+    }
+
+    /* Sidebar Izquierdo */
+    .app-sidebar {
+      width: 260px;
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      z-index: 50;
+      transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      flex-shrink: 0;
+    }
+
+    .sidebar-header {
+      padding: 1.25rem 1.25rem 1.1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: var(--text);
+    }
+
+    .brand-icon {
+      width: 38px;
+      height: 38px;
+      background: var(--accent);
+      color: #ffffff;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 6px rgba(217, 119, 6, 0.3);
+      flex-shrink: 0;
+    }
+
+    .brand-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+    }
+
+    .brand-subtitle {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.1rem 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .nav-group-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--text-subtle);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 0.4rem 0.6rem 0.25rem 0.6rem;
+      margin-top: 0.2rem;
+    }
+
+    .nav-tab {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      width: 100%;
+      padding: 0.65rem 0.85rem;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+
+    .nav-tab:hover {
+      background: var(--bg-alt);
+      color: var(--text);
+    }
+
+    .nav-tab.active {
+      background: var(--accent-light);
+      color: var(--accent-text);
+      border-color: rgba(217, 119, 6, 0.2);
+      font-weight: 700;
+    }
+
+    [data-theme="dark"] .nav-tab.active {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--accent);
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+
+    .nav-tab .icon {
+      color: currentColor;
+    }
+
+    .tab-badge {
+      margin-left: auto;
+      font-size: 0.72rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      background: var(--bg-alt);
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+
+    .nav-tab.active .tab-badge {
+      background: var(--accent);
+      color: #ffffff;
+    }
+
+    .sidebar-footer {
+      padding: 1rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      background: var(--bg-surface);
+    }
+
+    .sidebar-bcv-card {
+      background: var(--bg-alt);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .bcv-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .bcv-header-left {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .bcv-card-header .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 5px var(--success);
+      animation: pulse 2s infinite;
+      display: inline-block;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(0.9); }
+    }
+
+    .bcv-card-rate {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .bcv-card-source {
+      font-size: 0.68rem;
+      color: var(--text-subtle);
+    }
+
+    .theme-toggle-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      background: var(--bg-alt);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.45rem 0.75rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      width: 100%;
+      font-family: inherit;
+      transition: all 0.15s ease;
+    }
+    .theme-toggle-btn:hover {
+      background: var(--border);
+    }
+
+    /* -------------------------------------------------------------------------
+       Área Principal (Derecha)
+    ------------------------------------------------------------------------- */
+    .app-main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      background: var(--bg);
+    }
+
+    .main-topbar {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0.85rem 1.75rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+
+    .topbar-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .app-container {
+      padding: 1.75rem;
+      width: 100%;
+      max-width: 1360px;
+      margin: 0 auto;
+      flex: 1;
+    }
+
+    /* Overlay y Botón Móvil */
+    .mobile-menu-btn {
+      display: none;
+      background: var(--bg-alt);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.45rem;
+      color: var(--text);
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.4);
+      z-index: 45;
+      backdrop-filter: blur(2px);
+    }
+
+    @media (max-width: 960px) {
+      .app-sidebar {
+        position: fixed;
+        left: -270px;
+        top: 0;
+        bottom: 0;
+        box-shadow: var(--shadow-lg);
+      }
+      .app-sidebar.open {
+        transform: translateX(270px);
+      }
+      .mobile-menu-btn {
+        display: inline-flex;
+      }
+      .sidebar-overlay.active {
+        display: block;
+      }
+      .app-container {
+        padding: 1rem;
+      }
+      .main-topbar {
+        padding: 0.75rem 1rem;
+      }
+    }
+
+    /* -------------------------------------------------------------------------
+       Botones Generales
+    ------------------------------------------------------------------------- */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      padding: 0.5rem 0.9rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.875rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #ffffff;
+    }
+    .btn-primary:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+
+    .btn-secondary {
+      background: var(--bg-alt);
+      border-color: var(--border);
+      color: var(--text);
+    }
+    .btn-secondary:hover:not(:disabled) {
+      background: var(--border);
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: #ffffff;
+    }
+    .btn-success:hover:not(:disabled) {
+      filter: brightness(0.9);
+    }
+
+    .btn-danger {
+      background: var(--danger-light);
+      border-color: var(--danger);
+      color: var(--danger-text);
+    }
+    .btn-danger:hover:not(:disabled) {
+      background: var(--danger);
+      color: #ffffff;
+    }
+
+    .btn-icon {
+      padding: 0.4rem;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+    }
+    .btn-icon:hover {
+      background: var(--border);
+      color: var(--text);
+    }
+
+    /* -------------------------------------------------------------------------
+       Tarjetas y Grid de Métricas
+    ------------------------------------------------------------------------- */
+    .grid-metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      box-shadow: var(--shadow-sm);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .metric-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .metric-title .icon {
+      color: var(--text-subtle);
+    }
+
+    .metric-value-bs {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.2;
+    }
+
+    .metric-value-usd {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-top: 0.25rem;
+    }
+
+    .metric-highlight {
+      border-left: 4px solid var(--accent);
+    }
+    .metric-success {
+      border-left: 4px solid var(--success);
+    }
+    .metric-danger {
+      border-left: 4px solid var(--danger);
+    }
+    .metric-info {
+      border-left: 4px solid var(--info);
+    }
+
+    /* -------------------------------------------------------------------------
+       Tablas Limpias, Buscadores y Paginación
+    ------------------------------------------------------------------------- */
+    .table-container {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow-x: auto;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 1.5rem;
+    }
+
+    .table-header-box {
+      padding: 1rem 1.25rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .table-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .table-subtitle {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 0.15rem;
+    }
+
+    /* Input Buscador para Tablas */
+    .table-search-box {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.4rem 0.75rem;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .table-search-box:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15);
+    }
+
+    .table-search-box input {
+      border: none;
+      background: transparent;
+      outline: none;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.85rem;
+      width: 210px;
+    }
+
+    .table-search-box .icon {
+      color: var(--text-subtle);
+    }
+
+    /* Barra de Paginación */
+    .pagination-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.85rem 1.25rem;
+      border-top: 1px solid var(--border);
+      background: var(--bg-surface);
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .pagination-info {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    .pagination-info strong {
+      color: var(--text);
+    }
+
+    .pagination-buttons {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .btn-page {
+      padding: 0.35rem 0.65rem;
+      font-size: 0.8rem;
+    }
+
+    .btn-page-num {
+      min-width: 32px;
+      height: 32px;
+      padding: 0 0.4rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-alt);
+      color: var(--text);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s ease;
+    }
+
+    .btn-page-num:hover:not(.active) {
+      background: var(--border);
+    }
+
+    .btn-page-num.active {
+      background: var(--accent);
+      color: #ffffff;
+      border-color: var(--accent);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+      text-align: left;
+    }
+
+    th {
+      background: var(--bg-alt);
+      color: var(--text-muted);
+      font-weight: 600;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    td {
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background: var(--bg-alt);
+    }
+
+    .text-right { text-align: right; }
+    .text-center { text-align: center; }
+
+    /* Badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .badge-compra {
+      background: var(--info-light);
+      color: var(--info-text);
+    }
+
+    .badge-venta {
+      background: var(--success-light);
+      color: var(--success-text);
+    }
+
+    .badge-pagado {
+      background: var(--success-light);
+      color: var(--success-text);
+    }
+
+    .badge-fiado {
+      background: var(--danger-light);
+      color: var(--danger-text);
+    }
+
+    .badge-categoria {
+      background: var(--bg-alt);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+
+    .badge-stock-ok {
+      background: var(--success-light);
+      color: var(--success-text);
+    }
+
+    .badge-stock-low {
+      background: var(--danger-light);
+      color: var(--danger-text);
+    }
+
+    /* -------------------------------------------------------------------------
+       Panel de Gráficos Analíticos de Finanzas
+    ------------------------------------------------------------------------- */
+    .financial-analytics-panel {
+      margin-bottom: 1.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .kpi-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 1rem;
+    }
+
+    .kpi-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.15rem;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .kpi-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.4rem;
+    }
+
+    .kpi-value {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.2;
+    }
+
+    .kpi-subtitle {
+      font-size: 0.78rem;
+      margin-top: 0.25rem;
+      color: var(--text-subtle);
+    }
+
+    .charts-row-grid {
+      display: grid;
+      grid-template-columns: 2fr 1.1fr;
+      gap: 1.25rem;
+    }
+
+    @media (max-width: 1024px) {
+      .charts-row-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .chart-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chart-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .chart-card-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .chart-legend {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      font-size: 0.76rem;
+      font-weight: 600;
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .legend-color {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+    }
+
+    .svg-chart-container {
+      width: 100%;
+      overflow-x: auto;
+      position: relative;
+    }
+
+    .category-progress-item {
+      margin-bottom: 1.1rem;
+    }
+
+    .cat-prog-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.82rem;
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+    }
+
+    .cat-prog-track {
+      height: 10px;
+      background: var(--bg-alt);
+      border-radius: 999px;
+      overflow: hidden;
+      display: flex;
+    }
+
+    .cat-prog-fill {
+      height: 100%;
+      transition: width 0.4s ease;
+    }
+
+    /* -------------------------------------------------------------------------
+       Formularios y Modales
+    ------------------------------------------------------------------------- */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .form-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .form-input, .form-select {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.55rem 0.85rem;
+      font-size: 0.9rem;
+      color: var(--text);
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      width: 100%;
+    }
+
+    .form-input:focus, .form-select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15);
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .type-switcher {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      background: var(--bg-alt);
+      padding: 0.25rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+    }
+
+    .type-btn {
+      padding: 0.6rem;
+      border: none;
+      background: none;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.875rem;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-family: inherit;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+    }
+
+    .type-btn.active.compra {
+      background: var(--info);
+      color: #ffffff;
+    }
+
+    .type-btn.active.venta {
+      background: var(--success);
+      color: #ffffff;
+    }
+
+    /* -------------------------------------------------------------------------
+       Sección de Fiados / Cuentas por Cobrar
+    ------------------------------------------------------------------------- */
+    .fiados-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .fiado-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .fiado-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 0.85rem;
+      flex-wrap: wrap;
+    }
+
+    .fiado-name {
+      font-size: 1.15rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .fiado-total-bs {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--danger);
+    }
+
+    .fiado-total-usd {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .fiado-items-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.825rem;
+      background: var(--bg-alt);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+
+    .fiado-items-table th {
+      background: rgba(0, 0, 0, 0.03);
+      padding: 0.5rem 0.75rem;
+    }
+
+    .fiado-items-table td {
+      padding: 0.55rem 0.75rem;
+    }
+
+    /* -------------------------------------------------------------------------
+       Modales
+    ------------------------------------------------------------------------- */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(2px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: var(--shadow-lg);
+      animation: modalIn 0.2s ease;
+    }
+
+    @keyframes modalIn {
+      from { transform: scale(0.96); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 1.25rem;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+    }
+
+    /* -------------------------------------------------------------------------
+       Toasts / Notificaciones
+    ------------------------------------------------------------------------- */
+    .toast-container {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      z-index: 110;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      max-width: 360px;
+    }
+
+    .toast {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
+      padding: 0.85rem 1.25rem;
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow-lg);
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      animation: slideIn 0.2s ease forwards;
+    }
+
+    .toast.success { border-left-color: var(--success); }
+    .toast.danger { border-left-color: var(--danger); }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* -------------------------------------------------------------------------
+       Estados: Loading, Empty, Error
+    ------------------------------------------------------------------------- */
+    .state-box {
+      text-align: center;
+      padding: 3rem 1.5rem;
+      color: var(--text-muted);
+    }
+
+    .state-icon {
+      margin-bottom: 0.75rem;
+      display: flex;
+      justify-content: center;
+      color: var(--text-subtle);
+    }
+
+    .state-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 0.25rem;
+    }
+
+    .spinner {
+      border: 3px solid var(--bg-alt);
+      border-top: 3px solid var(--accent);
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 0.75rem;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Ocultar vistas */
+    .view-section {
+      display: none;
+    }
+    .view-section.active {
+      display: block;
+      animation: fadeIn 0.15s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Overlay para menú en dispositivos móviles -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleMobileSidebar()"></div>
+
+  <!-- Layout Principal -->
+  <div class="app-layout">
+
+    <!-- ===================================================================
+         SIDEBAR IZQUIERDO
+    ==================================================================== -->
+    <aside class="app-sidebar" id="appSidebar">
+      <!-- Marca / Logo -->
+      <div class="sidebar-header">
+        <a href="#" class="brand">
+          <div class="brand-icon">
+            <svg class="icon" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </div>
+          <div class="brand-text">
+            <div class="brand-title">Inventario Casa</div>
+            <div class="brand-subtitle">Gestión Familiar</div>
+          </div>
+        </a>
+      </div>
+
+      <!-- Menú de Navegación Vertical -->
+      <nav class="sidebar-nav">
+        <div class="nav-group-label">Vistas del Sistema</div>
+
+        <button class="nav-tab active" onclick="switchTab('dashboard')">
+          <svg class="icon" viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+          <span>Dashboard</span>
+        </button>
+
+        <button class="nav-tab" onclick="switchTab('catalogo')">
+          <svg class="icon" viewBox="0 0 24 24"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+          <span>Catálogo & Precios</span>
+        </button>
+
+        <button class="nav-tab" onclick="switchTab('nuevo-movimiento')">
+          <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+          <span>Registrar Movimiento</span>
+        </button>
+
+        <button class="nav-tab" onclick="switchTab('movimientos')">
+          <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>Historial</span>
+        </button>
+
+        <button class="nav-tab" onclick="switchTab('fiados')">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Cuentas por Cobrar</span>
+          <span class="tab-badge" id="badgeFiadosCount">0</span>
+        </button>
+
+        <button class="nav-tab" onclick="switchTab('finanzas')">
+          <svg class="icon" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+          <span>Finanzas Mensuales</span>
+        </button>
+      </nav>
+
+      <!-- Pie del Sidebar: BCV Oficial + Selector de Tema -->
+      <div class="sidebar-footer">
+        <div class="sidebar-bcv-card" id="bcvBadgeContainer" title="Tasa oficial del Banco Central de Venezuela">
+          <div class="bcv-card-header">
+            <div class="bcv-header-left">
+              <span class="dot"></span>
+              <span>Dólar BCV</span>
+            </div>
+            <button class="btn-icon" onclick="actualizarTasaBCV(true)" title="Refrescar tasa oficial">
+              <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+            </button>
+          </div>
+          <div class="bcv-card-rate" id="headerBcvRate">Cargando...</div>
+          <div class="bcv-card-source" id="headerBcvSource">bcv.org.ve oficial</div>
+        </div>
+
+        <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Cambiar tema">
+          <span id="themeToggleIcon">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+          </span>
+          <span id="themeToggleText">Modo Oscuro</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- ===================================================================
+         CONTENIDO PRINCIPAL (DERECHA)
+    ==================================================================== -->
+    <div class="app-main">
+      <!-- Barra Superior (Topbar) -->
+      <header class="main-topbar">
+        <div class="topbar-left">
+          <button class="mobile-menu-btn" onclick="toggleMobileSidebar()" aria-label="Abrir Menú">
+            <svg class="icon" viewBox="0 0 24 24"><line x1="3" x2="21" y1="6" y2="6"/><line x1="3" x2="21" y1="12" y2="12"/><line x1="3" x2="21" y1="18" y2="18"/></svg>
+          </button>
+          <h1 class="topbar-title" id="topbarPageTitle">Dashboard General</h1>
+        </div>
+
+        <div class="topbar-actions">
+          <a href="/api/excel/exportar" class="btn btn-secondary" title="Descargar archivo Excel con las 4 hojas actualizadas">
+            <svg class="icon icon-md" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+            <span>Exportar Excel</span>
+          </a>
+
+          <button class="btn btn-primary" onclick="sincronizarConEscritorio()" title="Sincronizar directamente con el Excel del escritorio">
+            <svg class="icon icon-md" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            <span>Sincronizar Excel</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Contenedor de Vistas -->
+      <main class="app-container">
+
+        <!-- ===================================================================
+             VISTA 1: DASHBOARD
+        ==================================================================== -->
+        <section id="view-dashboard" class="view-section active">
+          <!-- Grid de Métricas Principales -->
+          <div class="grid-metrics">
+            <div class="card metric-highlight">
+              <div class="metric-title">
+                <span>Ganancia Neta General</span>
+                <svg class="icon" viewBox="0 0 24 24"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
+              </div>
+              <div class="metric-value-bs" id="dashGananciaNetaBs">0.00 Bs</div>
+              <div class="metric-value-usd" id="dashGananciaNetaUsd">$0.00 USD</div>
+            </div>
+
+            <div class="card metric-info">
+              <div class="metric-title">
+                <span>Valor del Inventario</span>
+                <svg class="icon" viewBox="0 0 24 24"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+              </div>
+              <div class="metric-value-bs" id="dashValorInventarioBs">0.00 Bs</div>
+              <div class="metric-value-usd" id="dashValorInventarioUsd">$0.00 USD</div>
+            </div>
+
+            <div class="card metric-danger">
+              <div class="metric-title">
+                <span>Total Fiado (Pendiente)</span>
+                <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+              </div>
+              <div class="metric-value-bs" id="dashTotalFiadoBs">0.00 Bs</div>
+              <div class="metric-value-usd" id="dashTotalFiadoUsd">$0.00 USD</div>
+            </div>
+
+            <div class="card metric-success">
+              <div class="metric-title">
+                <span>Total Vendido General</span>
+                <svg class="icon" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+              </div>
+              <div class="metric-value-bs" id="dashTotalVendidoBs">0.00 Bs</div>
+              <div class="metric-value-usd" id="dashTotalVendidoUsd">$0.00 USD</div>
+            </div>
+
+            <div class="card">
+              <div class="metric-title">
+                <span>Total Invertido (Compras)</span>
+                <svg class="icon" viewBox="0 0 24 24"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+              </div>
+              <div class="metric-value-bs" id="dashTotalInvertidoBs">0.00 Bs</div>
+              <div class="metric-value-usd" id="dashTotalInvertidoUsd">$0.00 USD</div>
+            </div>
+
+            <!-- Tarjeta: Ganancia por Refrescos -->
+            <div class="card" style="border-top: 3px solid #16a34a;">
+              <div class="metric-title">
+                <span>Ganancia Refrescos</span>
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2h8"/><path d="M9 2v2.789a4 4 0 0 1-.672 2.219l-.656.984A4 4 0 0 0 7 10.212V20a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-9.789a4 4 0 0 0-.672-2.219l-.656-.984A4 4 0 0 1 15 4.788V2"/><path d="M7 15a6.472 6.472 0 0 1 5 0 6.47 6.47 0 0 0 5 0"/></svg>
+              </div>
+              <div class="metric-value-bs" id="dashGananciaRefrescosBs" style="color: #16a34a;">0.00 Bs</div>
+              <div class="metric-value-usd" id="dashGananciaRefrescosUsd">$0.00 USD</div>
+            </div>
+
+            <!-- Tarjeta: Ganancia por Cervezas -->
+            <div class="card" style="border-top: 3px solid #d97706;">
+              <div class="metric-title">
+                <span>Ganancia Cervezas</span>
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 11h1a3 3 0 0 1 0 6h-1"/><path d="M9 12v6"/><path d="M13 12v6"/><path d="M14 7.5c-1 0-1.44.5-3 .5s-2-.5-3-.5-1.44.5-3 .5"/><path d="M14 2c1 0 1.44.5 3 .5S18.56 2 20 2"/><path d="M20 2v17.5c0 .28-.14.5-.5.5h-13c-.36 0-.5-.22-.5-.5V2"/><path d="M14 7.5V2"/></svg>
+              </div>
+              <div class="metric-value-bs" id="dashGananciaCervezasBs" style="color: #d97706;">0.00 Bs</div>
+              <div class="metric-value-usd" id="dashGananciaCervezasUsd">$0.00 USD</div>
+            </div>
+          </div>
+
+          <!-- Tablas de Stock por Categoría (Refrescos y Cervezas) -->
+          <div id="dashStockContainer">
+            <div class="state-box">
+              <div class="spinner"></div>
+              <div class="state-title">Cargando métricas del sistema...</div>
+            </div>
+          </div>
+
+          <!-- Resúmenes Financieros por Categoría -->
+          <div id="dashResumenFinancieroContainer"></div>
+        </section>
+
+        <!-- ===================================================================
+             VISTA 2: CATÁLOGO & PRECIOS (CON BUSCADOR Y PAGINACIÓN 5/PÁG)
+        ==================================================================== -->
+        <section id="view-catalogo" class="view-section">
+          <div class="table-container">
+            <div class="table-header-box">
+              <div>
+                <div class="table-title">
+                  <svg class="icon" viewBox="0 0 24 24"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+                  <span>Catálogo de Productos y Precios</span>
+                </div>
+                <div class="table-subtitle">Precios de compra, venta y stock actual calculado automáticamente</div>
+              </div>
+              <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                <div class="table-search-box">
+                  <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/></svg>
+                  <input type="text" id="catalogoSearch" placeholder="Buscar producto o categoría..." oninput="onCatalogoSearch(this.value)" />
+                </div>
+                <button class="btn btn-primary" onclick="abrirModalNuevoProducto()">
+                  <svg class="icon icon-md" viewBox="0 0 24 24"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
+                  <span>Nuevo Producto</span>
+                </button>
+              </div>
+            </div>
+
+            <div id="catalogoTableWrapper">
+              <div class="state-box">
+                <div class="spinner"></div>
+                <div class="state-title">Cargando catálogo...</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===================================================================
+             VISTA 3: REGISTRAR MOVIMIENTO (COMPRA / VENTA)
+        ==================================================================== -->
+        <section id="view-nuevo-movimiento" class="view-section">
+          <div class="card" style="max-width: 760px; margin: 0 auto;">
+            <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem;">
+              <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+              <span>Registrar Nuevo Movimiento</span>
+            </h2>
+
+            <form id="formMovimiento" onsubmit="guardarNuevoMovimiento(event)">
+              <!-- Selector Tipo: Compra / Venta -->
+              <div class="form-group" style="margin-bottom: 1.25rem;">
+                <label class="form-label">Tipo de Movimiento</label>
+                <div class="type-switcher">
+                  <button type="button" class="type-btn active venta" id="btnTipoVenta" onclick="setTipoMovimiento('Venta')">
+                    <svg class="icon icon-md" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                    <span>Venta (Salida)</span>
+                  </button>
+                  <button type="button" class="type-btn compra" id="btnTipoCompra" onclick="setTipoMovimiento('Compra')">
+                    <svg class="icon icon-md" viewBox="0 0 24 24"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+                    <span>Compra (Entrada Stock)</span>
+                  </button>
+                </div>
+                <input type="hidden" id="movTipo" value="Venta" />
+              </div>
+
+              <div class="form-grid" style="margin-bottom: 1rem;">
+                <!-- Fecha -->
+                <div class="form-group">
+                  <label class="form-label" for="movFecha">Fecha</label>
+                  <input type="date" id="movFecha" class="form-input" required />
+                </div>
+
+                <!-- Producto -->
+                <div class="form-group">
+                  <label class="form-label" for="movProducto">Producto</label>
+                  <select id="movProducto" class="form-select" required onchange="onProductoSeleccionado()">
+                    <option value="">Seleccione un producto...</option>
+                  </select>
+                </div>
+
+                <!-- Cantidad -->
+                <div class="form-group">
+                  <label class="form-label" for="movCantidad">Cantidad (Unidades)</label>
+                  <input type="number" id="movCantidad" class="form-input" min="1" value="1" required oninput="calcularTotalEnVivo()" />
+                </div>
+
+                <!-- Precio Unitario en Bs -->
+                <div class="form-group">
+                  <label class="form-label" for="movPrecioUnitario" id="labelPrecioUnitario">Precio de Venta (Bs)</label>
+                  <input type="number" step="0.01" id="movPrecioUnitario" class="form-input" required oninput="calcularTotalEnVivo()" />
+                </div>
+              </div>
+
+              <!-- Total Calculado en Vivo -->
+              <div class="card" style="background: var(--bg-alt); margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">TOTAL CALCULADO</div>
+                  <div style="font-size: 1.4rem; font-weight: 700;" id="movTotalEnVivoBs">0.00 Bs</div>
+                </div>
+                <div style="text-align: right;">
+                  <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">EQUIVALENTE USD (BCV)</div>
+                  <div style="font-size: 1.1rem; font-weight: 700; color: var(--accent);" id="movTotalEnVivoUsd">$0.00 USD</div>
+                </div>
+              </div>
+
+              <div class="form-grid" style="margin-bottom: 1.25rem;">
+                <!-- Persona / Proveedor / Cliente -->
+                <div class="form-group">
+                  <label class="form-label" for="movPersona" id="labelPersona">Cliente / Persona</label>
+                  <input type="text" id="movPersona" class="form-input" placeholder="Ej: Fatima, Giorgio, Salvador..." />
+                </div>
+
+                <!-- Estado de Pago -->
+                <div class="form-group">
+                  <label class="form-label" for="movEstadoPago">Estado del Pago</label>
+                  <select id="movEstadoPago" class="form-select">
+                    <option value="Pagado">Pagado al instante</option>
+                    <option value="Fiado">Fiado (Por Cobrar)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Notas -->
+              <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label class="form-label" for="movNotas">Notas / Detalle</label>
+                <input type="text" id="movNotas" class="form-input" placeholder="Ej: Salida, Terraza H, etc." />
+              </div>
+
+              <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+                <button type="reset" class="btn btn-secondary" onclick="resetFormMovimiento()">Limpiar</button>
+                <button type="submit" class="btn btn-primary" id="btnGuardarMovimiento">
+                  <svg class="icon icon-md" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                  <span>Registrar Movimiento</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <!-- ===================================================================
+             VISTA 4: HISTORIAL DE MOVIMIENTOS (CON BUSCADOR Y PAGINACIÓN 5/PÁG)
+        ==================================================================== -->
+        <section id="view-movimientos" class="view-section">
+          <div class="table-container">
+            <div class="table-header-box">
+              <div>
+                <div class="table-title">
+                  <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  <span>Historial de Transacciones</span>
+                </div>
+                <div class="table-subtitle">Compras, ventas y control de estados</div>
+              </div>
+              <!-- Filtros de búsqueda -->
+              <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <div class="table-search-box">
+                  <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/></svg>
+                  <input type="text" id="filterSearch" placeholder="Buscar cliente/nota/prod..." oninput="filtrarHistorial()" />
+                </div>
+                <select id="filterTipo" class="form-select" style="padding: 0.4rem 0.75rem; width: auto;" onchange="filtrarHistorial()">
+                  <option value="">Todos los tipos</option>
+                  <option value="Venta">Ventas</option>
+                  <option value="Compra">Compras</option>
+                </select>
+                <select id="filterPago" class="form-select" style="padding: 0.4rem 0.75rem; width: auto;" onchange="filtrarHistorial()">
+                  <option value="">Todos los pagos</option>
+                  <option value="Pagado">Pagado</option>
+                  <option value="Fiado">Fiado</option>
+                </select>
+              </div>
+            </div>
+
+            <div id="movimientosTableWrapper">
+              <div class="state-box">
+                <div class="spinner"></div>
+                <div class="state-title">Cargando movimientos...</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===================================================================
+             VISTA 5: CONTROL DE FIADOS (CON BUSCADOR Y PAGINACIÓN 5/PÁG)
+        ==================================================================== -->
+        <section id="view-fiados" class="view-section">
+          <div style="margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div>
+              <h2 style="font-size: 1.3rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <span>Cuentas por Cobrar (Deudores)</span>
+              </h2>
+              <p style="font-size: 0.85rem; color: var(--text-muted);">Control y liquidación de ventas fiadas por persona</p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+              <div class="table-search-box">
+                <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/></svg>
+                <input type="text" id="fiadosSearch" placeholder="Buscar cliente deudor..." oninput="onFiadosSearch(this.value)" />
+              </div>
+              <div class="card" style="padding: 0.5rem 1rem; display: flex; gap: 1.25rem; align-items: center;">
+                <div>
+                  <div style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted);">TOTAL ADEUDADO</div>
+                  <div style="font-size: 1.15rem; font-weight: 700; color: var(--danger);" id="fiadosTotalGeneralBs">0.00 Bs</div>
+                </div>
+                <div>
+                  <div style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted);">EQUIV. USD</div>
+                  <div style="font-size: 1.05rem; font-weight: 700; color: var(--accent);" id="fiadosTotalGeneralUsd">$0.00 USD</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="fiadosContainer" class="fiados-list">
+            <div class="state-box">
+              <div class="spinner"></div>
+              <div class="state-title">Cargando deudores...</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===================================================================
+             VISTA 6: FINANZAS MENSUALES (CON GRÁFICOS VISUALES Y TABLA 5/PÁG)
+        ==================================================================== -->
+        <section id="view-finanzas" class="view-section">
+          <!-- Panel de Gráficos Analíticos de Finanzas -->
+          <div id="finanzasAnalyticsContainer" class="financial-analytics-panel">
+            <div class="state-box">
+              <div class="spinner"></div>
+              <div class="state-title">Calculando rendimiento financiero...</div>
+            </div>
+          </div>
+
+          <!-- Tabla de Detalle Mensual con Buscador y Paginación -->
+          <div class="table-container">
+            <div class="table-header-box">
+              <div>
+                <div class="table-title">
+                  <svg class="icon" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+                  <span>Detalle de Registros Mensuales</span>
+                </div>
+                <div class="table-subtitle">Comparativa mes a mes de compras, ventas pagadas, fiados, costos y ganancias netas</div>
+              </div>
+              <div class="table-search-box">
+                <svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/></svg>
+                <input type="text" id="finanzasSearch" placeholder="Buscar mes o categoría..." oninput="onFinanzasSearch(this.value)" />
+              </div>
+            </div>
+
+            <div id="finanzasTableWrapper">
+              <div class="state-box">
+                <div class="spinner"></div>
+                <div class="state-title">Cargando balance mensual...</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       MODAL: EDITAR PRECIOS DE PRODUCTO
+  ====================================================================== -->
+  <div class="modal-overlay" id="modalEditarPrecio">
+    <div class="modal-card">
+      <div class="modal-title" id="modalEditProdTitle">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+        <span>Editar Precios de Producto</span>
+      </div>
+      <form onsubmit="guardarEdicionPrecio(event)">
+        <input type="hidden" id="editProdId" />
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" for="editProdCategoria">Categoría</label>
+          <input type="text" id="editProdCategoria" class="form-input" required />
+        </div>
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" for="editProdCompraBs">Precio de Compra Actual (Bs)</label>
+          <input type="number" step="0.0001" id="editProdCompraBs" class="form-input" required />
+        </div>
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+          <label class="form-label" for="editProdVentaBs">Precio de Venta Actual (Bs)</label>
+          <input type="number" step="0.01" id="editProdVentaBs" class="form-input" required />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="cerrarModal('modalEditarPrecio')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       MODAL: NUEVO PRODUCTO
+  ====================================================================== -->
+  <div class="modal-overlay" id="modalNuevoProducto">
+    <div class="modal-card">
+      <div class="modal-title">
+        <svg class="icon" viewBox="0 0 24 24"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+        <span>Agregar Nuevo Producto al Catálogo</span>
+      </div>
+      <form onsubmit="guardarNuevoProducto(event)">
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" for="newProdNombre">Nombre del Producto</label>
+          <input type="text" id="newProdNombre" class="form-input" placeholder="Ej: Malta Polar, Sprite, etc." required />
+        </div>
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" for="newProdCategoria">Categoría</label>
+          <select id="newProdCategoria" class="form-select" required>
+            <option value="Refresco">Refresco</option>
+            <option value="Cerveza">Cerveza</option>
+            <option value="Snack">Snack</option>
+            <option value="General">General</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" for="newProdCompraBs">Precio de Compra Inicial (Bs)</label>
+          <input type="number" step="0.0001" id="newProdCompraBs" class="form-input" value="0" required />
+        </div>
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+          <label class="form-label" for="newProdVentaBs">Precio de Venta Inicial (Bs)</label>
+          <input type="number" step="0.01" id="newProdVentaBs" class="form-input" value="0" required />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="cerrarModal('modalNuevoProducto')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Crear Producto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Contenedor Toasts -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- =====================================================================
+       LÓGICA JAVASCRIPT VANILLA
+  ====================================================================== -->
+  <script>
+    // Diccionario de Iconos SVG
+    const SVG = {
+      dashboard: `<svg class="icon" viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>`,
+      package: `<svg class="icon" viewBox="0 0 24 24"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>`,
+      user: `<svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+      edit: `<svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>`,
+      trash: `<svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,
+      checkCircle: `<svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+      check: `<svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`,
+      alert: `<svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>`,
+      empty: `<svg class="icon icon-xl" viewBox="0 0 24 24"><path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2"/></svg>`,
+      table: `<svg class="icon" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>`,
+      sun: `<svg class="icon icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>`,
+      moon: `<svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>`,
+      chevronLeft: `<svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>`,
+      chevronRight: `<svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>`
+    };
+
+    // Estado Global de la App
+    let STATE = {
+      tasaBcv: 804.81,
+      productos: [],
+      movimientos: [],
+      fiados: null,
+      finanzas: [],
+      dashboard: null,
+    };
+
+    // Estado Global de Paginación y Filtros (5 por página)
+    let PAGINATION = {
+      catalogo: { page: 1, perPage: 5, search: "" },
+      movimientos: { page: 1, perPage: 5, search: "", tipo: "", pago: "" },
+      fiados: { page: 1, perPage: 5, search: "" },
+      finanzas: { page: 1, perPage: 5, search: "" },
+    };
+
+    // -----------------------------------------------------------------------
+    // Inicialización al cargar página
+    // -----------------------------------------------------------------------
+    document.addEventListener("DOMContentLoaded", () => {
+      const hoy = new Date().toISOString().split("T")[0];
+      document.getElementById("movFecha").value = hoy;
+
+      // Cargar Tema Guardado
+      const savedTheme = localStorage.getItem("app_theme") || "light";
+      document.documentElement.setAttribute("data-theme", savedTheme);
+      actualizarIconoTema(savedTheme);
+
+      // Cargar Datos Iniciales
+      cargarTodo();
+    });
+
+    // -----------------------------------------------------------------------
+    // Navegación de Pestañas (Sidebar)
+    // -----------------------------------------------------------------------
+    const TITULOS_VISTAS = {
+      "dashboard": "Dashboard General",
+      "catalogo": "Catálogo de Productos & Precios",
+      "nuevo-movimiento": "Movimientos",
+      "movimientos": "Historial de Transacciones",
+      "fiados": "Control de Cuentas por Cobrar (Fiados)",
+      "finanzas": "Control Financiero Mensual"
+    };
+
+    function switchTab(tabId) {
+      document.querySelectorAll(".nav-tab").forEach(tab => tab.classList.remove("active"));
+      document.querySelectorAll(".view-section").forEach(sec => sec.classList.remove("active"));
+
+      const targetBtn = Array.from(document.querySelectorAll(".nav-tab")).find(b => {
+        const onclickAttr = b.getAttribute("onclick") || "";
+        return onclickAttr.includes(`'${tabId}'`) || onclickAttr.includes(`"${tabId}"`);
+      });
+      if (targetBtn) targetBtn.classList.add("active");
+
+      const targetSec = document.getElementById(`view-${tabId}`);
+      if (targetSec) targetSec.classList.add("active");
+
+      // Actualizar título en la barra superior
+      const titleElem = document.getElementById("topbarPageTitle");
+      if (titleElem && TITULOS_VISTAS[tabId]) {
+        titleElem.textContent = TITULOS_VISTAS[tabId];
+      }
+
+      // Cerrar sidebar en móviles si estaba abierto
+      closeMobileSidebar();
+
+      // Refrescos específicos por pestaña
+      if (tabId === "dashboard") renderDashboard();
+      if (tabId === "catalogo") renderCatalogo();
+      if (tabId === "movimientos") renderHistorial();
+      if (tabId === "fiados") cargarFiados();
+      if (tabId === "finanzas") cargarFinanzas();
+    }
+
+    function toggleMobileSidebar() {
+      const sidebar = document.getElementById("appSidebar");
+      const overlay = document.getElementById("sidebarOverlay");
+      if (sidebar && overlay) {
+        sidebar.classList.toggle("open");
+        overlay.classList.toggle("active");
+      }
+    }
+
+    function closeMobileSidebar() {
+      const sidebar = document.getElementById("appSidebar");
+      const overlay = document.getElementById("sidebarOverlay");
+      if (sidebar && overlay) {
+        sidebar.classList.remove("open");
+        overlay.classList.remove("active");
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // Manejo de Tema (Claro / Oscuro)
+    // -----------------------------------------------------------------------
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute("data-theme") || "light";
+      const next = current === "light" ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", next);
+      localStorage.setItem("app_theme", next);
+      actualizarIconoTema(next);
+    }
+
+    function actualizarIconoTema(theme) {
+      const icon = document.getElementById("themeToggleIcon");
+      const text = document.getElementById("themeToggleText");
+      if (theme === "dark") {
+        if (icon) icon.innerHTML = SVG.sun;
+        if (text) text.textContent = "Modo Claro";
+      } else {
+        if (icon) icon.innerHTML = SVG.moon;
+        if (text) text.textContent = "Modo Oscuro";
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // Carga de Datos desde Backend API
+    // -----------------------------------------------------------------------
+    async function cargarTodo() {
+      await Promise.all([
+        actualizarTasaBCV(false),
+        cargarProductos(),
+        cargarDashboard(),
+        cargarMovimientos(),
+        cargarFiados(),
+      ]);
+    }
+
+    async function actualizarTasaBCV(mostrarToast = false) {
+      try {
+        const url = mostrarToast ? "/api/bcv?refresh=true" : "/api/bcv";
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          STATE.tasaBcv = data.tasa;
+          const rateElem = document.getElementById("headerBcvRate");
+          if (rateElem) rateElem.textContent = `${STATE.tasaBcv.toFixed(2)} Bs/$`;
+          
+          const sourceElem = document.getElementById("headerBcvSource");
+          if (sourceElem && data.fuente) sourceElem.textContent = data.fuente;
+
+          if (mostrarToast) {
+            mostrarNotificacion(`Tasa BCV actualizada: ${STATE.tasaBcv.toFixed(2)} Bs/$`, "success");
+            cargarDashboard();
+            renderCatalogo();
+          }
+        }
+      } catch (e) {
+        console.error("Error cargando BCV:", e);
+        if (mostrarToast) mostrarNotificacion("No se pudo actualizar la tasa BCV", "danger");
+      }
+    }
+
+    async function cargarDashboard() {
+      try {
+        const res = await fetch("/api/dashboard");
+        if (res.ok) {
+          STATE.dashboard = await res.json();
+          STATE.tasaBcv = STATE.dashboard.tasa_bcv || STATE.tasaBcv;
+          const rateElem = document.getElementById("headerBcvRate");
+          if (rateElem) rateElem.textContent = `${STATE.tasaBcv.toFixed(2)} Bs/$`;
+          renderDashboard();
+        }
+      } catch (e) {
+        console.error("Error dashboard:", e);
+      }
+    }
+
+    async function cargarProductos() {
+      try {
+        const res = await fetch("/api/productos");
+        if (res.ok) {
+          STATE.productos = await res.json();
+          poblarSelectorProductos();
+          renderCatalogo();
+        }
+      } catch (e) {
+        console.error("Error productos:", e);
+      }
+    }
+
+    async function cargarMovimientos() {
+      try {
+        const res = await fetch("/api/movimientos");
+        if (res.ok) {
+          STATE.movimientos = await res.json();
+          renderHistorial();
+        }
+      } catch (e) {
+        console.error("Error movimientos:", e);
+      }
+    }
+
+    async function cargarFiados() {
+      try {
+        const res = await fetch("/api/fiados");
+        if (res.ok) {
+          STATE.fiados = await res.json();
+          renderFiados();
+        }
+      } catch (e) {
+        console.error("Error fiados:", e);
+      }
+    }
+
+    async function cargarFinanzas() {
+      try {
+        const res = await fetch("/api/finanzas");
+        if (res.ok) {
+          STATE.finanzas = await res.json();
+          renderFinanzas();
+        }
+      } catch (e) {
+        console.error("Error finanzas:", e);
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // Helper Reutilizable de Barra de Paginación
+    // -----------------------------------------------------------------------
+    function renderPaginationBar(currentPage, totalPages, totalCount, onPageFnName) {
+      if (totalCount === 0) return "";
+      const start = (currentPage - 1) * 5 + 1;
+      const end = Math.min(currentPage * 5, totalCount);
+
+      let pageNumbersHtml = "";
+      for (let p = 1; p <= totalPages; p++) {
+        pageNumbersHtml += `
+          <button class="btn-page-num ${p === currentPage ? "active" : ""}" onclick="${onPageFnName}(${p})">
+            ${p}
+          </button>
+        `;
+      }
+
+      return `
+        <div class="pagination-bar">
+          <div class="pagination-info">
+            Mostrando <strong>${start}</strong> a <strong>${end}</strong> de <strong>${totalCount}</strong> registros (Pág. ${currentPage} de ${totalPages})
+          </div>
+          <div class="pagination-buttons">
+            <button class="btn btn-secondary btn-page" ${currentPage <= 1 ? "disabled" : ""} onclick="${onPageFnName}(${currentPage - 1})">
+              ${SVG.chevronLeft} <span>Anterior</span>
+            </button>
+            ${pageNumbersHtml}
+            <button class="btn btn-secondary btn-page" ${currentPage >= totalPages ? "disabled" : ""} onclick="${onPageFnName}(${currentPage + 1})">
+              <span>Siguiente</span> ${SVG.chevronRight}
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    // -----------------------------------------------------------------------
+    // Renderizado de Vistas
+    // -----------------------------------------------------------------------
+
+    // 1. Render Dashboard
+    function renderDashboard() {
+      if (!STATE.dashboard) return;
+      const d = STATE.dashboard;
+      const gen = d.resumen_general;
+
+      document.getElementById("dashGananciaNetaBs").textContent = `${formatNum(gen.ganancia_neta_bs)} Bs`;
+      document.getElementById("dashGananciaNetaUsd").textContent = `$${formatNum(gen.ganancia_neta_usd)} USD`;
+
+      document.getElementById("dashValorInventarioBs").textContent = `${formatNum(gen.valor_inventario_bs)} Bs`;
+      document.getElementById("dashValorInventarioUsd").textContent = `$${formatNum(gen.valor_inventario_usd)} USD`;
+
+      document.getElementById("dashTotalFiadoBs").textContent = `${formatNum(gen.total_fiado_bs)} Bs`;
+      document.getElementById("dashTotalFiadoUsd").textContent = `$${formatNum(gen.total_fiado_usd)} USD`;
+
+      document.getElementById("dashTotalVendidoBs").textContent = `${formatNum(gen.total_vendido_bs)} Bs`;
+      document.getElementById("dashTotalVendidoUsd").textContent = `$${formatNum(gen.total_vendido_usd)} USD`;
+
+      document.getElementById("dashTotalInvertidoBs").textContent = `${formatNum(gen.total_invertido_bs)} Bs`;
+      document.getElementById("dashTotalInvertidoUsd").textContent = `$${formatNum(gen.total_invertido_usd)} USD`;
+
+      // Llenar tarjetas de ganancia por categoría (Refrescos y Cervezas)
+      const catData = d.resumen_por_categoria || {};
+      const refrescos = catData["Refresco"] || catData["Refrescos"] || {};
+      const cervezas  = catData["Cerveza"]  || catData["Cervezas"]  || {};
+
+      document.getElementById("dashGananciaRefrescosBs").textContent  = `${formatNum(refrescos.ganancia_general_bs  || 0)} Bs`;
+      document.getElementById("dashGananciaRefrescosUsd").textContent = `$${formatNum(refrescos.ganancia_general_usd || 0)} USD`;
+      document.getElementById("dashGananciaCervezasBs").textContent   = `${formatNum(cervezas.ganancia_general_bs   || 0)} Bs`;
+      document.getElementById("dashGananciaCervezasUsd").textContent  = `$${formatNum(cervezas.ganancia_general_usd  || 0)} USD`;
+
+      // Render Tablas de Stock por Categoría
+      const stockCont = document.getElementById("dashStockContainer");
+      let stockHtml = "";
+
+      for (const [cat, data] of Object.entries(d.stock_por_categoria)) {
+        const plural = cat === "Refresco" ? "REFRESCOS" : (cat === "Cerveza" ? "CERVEZAS" : `${cat.toUpperCase()}S`);
+        stockHtml += `
+          <div class="table-container" style="margin-bottom: 1.5rem;">
+            <div class="table-header-box">
+              <div>
+                <div class="table-title">
+                  ${SVG.package}
+                  <span>Stock de ${plural}</span>
+                </div>
+                <div class="table-subtitle">Unidades físicas y valorización a precio de venta actual</div>
+              </div>
+              <div style="font-weight: 700; color: var(--accent); font-size: 0.95rem;">
+                ${data.unidades_totales} unidades | ${formatNum(data.valor_stock_bs)} Bs ($${formatNum(data.valor_stock_usd)})
+              </div>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th class="text-center">Stock Físico</th>
+                  <th class="text-right">Precio Venta (Bs)</th>
+                  <th class="text-right">Precio Venta (USD)</th>
+                  <th class="text-right">Valor Stock (Bs)</th>
+                  <th class="text-right">Valor Stock (USD)</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${data.productos.map(p => `
+                  <tr>
+                    <td style="font-weight: 600;">${p.nombre}</td>
+                    <td class="text-center">
+                      <span class="badge ${p.stock > 0 ? 'badge-stock-ok' : 'badge-stock-low'}">
+                        ${p.stock} un.
+                      </span>
+                    </td>
+                    <td class="text-right">${formatNum(p.precio_venta_bs)} Bs</td>
+                    <td class="text-right" style="color: var(--accent); font-weight: 600;">$${formatNum(p.precio_venta_usd)}</td>
+                    <td class="text-right" style="font-weight: 600;">${formatNum(p.valor_stock_bs)} Bs</td>
+                    <td class="text-right" style="color: var(--accent); font-weight: 600;">$${formatNum(p.valor_stock_usd)}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+      stockCont.innerHTML = stockHtml;
+
+      // Render Resúmenes Financieros por Categoría
+      const finCont = document.getElementById("dashResumenFinancieroContainer");
+      let finHtml = "";
+
+      for (const [cat, fin] of Object.entries(d.resumen_por_categoria)) {
+        const plural = cat === "Refresco" ? "REFRESCOS" : (cat === "Cerveza" ? "CERVEZAS" : `${cat.toUpperCase()}S`);
+        finHtml += `
+          <div class="table-container" style="margin-bottom: 1.5rem;">
+            <div class="table-header-box">
+              <div class="table-title">
+                ${SVG.table}
+                <span>Resumen Financiero: ${plural}</span>
+              </div>
+              <div class="table-subtitle">Compras, ventas pagadas, fiados y ganancias netas</div>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Concepto</th>
+                  <th class="text-right">Monto (Bs)</th>
+                  <th class="text-right">Monto (USD)</th>
+                  <th>Detalle</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Total Invertido</td>
+                  <td class="text-right" style="font-weight: 600;">${formatNum(fin.total_invertido_bs)} Bs</td>
+                  <td class="text-right" style="color: var(--accent); font-weight: 600;">$${formatNum(fin.total_invertido_usd)}</td>
+                  <td style="color: var(--text-muted);">Compras de ${cat.toLowerCase()}s</td>
+                </tr>
+                <tr>
+                  <td>Total Fiado (Pendiente)</td>
+                  <td class="text-right" style="font-weight: 600; color: var(--danger);">${formatNum(fin.total_fiado_bs)} Bs</td>
+                  <td class="text-right" style="color: var(--accent); font-weight: 600;">$${formatNum(fin.total_fiado_usd)}</td>
+                  <td style="color: var(--text-muted);">Deuda clientes ${cat.toLowerCase()}s</td>
+                </tr>
+                <tr>
+                  <td>Total Vendido (Pagado)</td>
+                  <td class="text-right" style="font-weight: 600; color: var(--success);">${formatNum(fin.total_vendido_pagado_bs)} Bs</td>
+                  <td class="text-right" style="color: var(--accent); font-weight: 600;">$${formatNum(fin.total_vendido_pagado_usd)}</td>
+                  <td style="color: var(--text-muted);">Ventas cobradas</td>
+                </tr>
+                <tr>
+                  <td>Total Vendido (General)</td>
+                  <td class="text-right" style="font-weight: 600;">${formatNum(fin.total_vendido_general_bs)} Bs</td>
+                  <td class="text-right" style="color: var(--accent); font-weight: 600;">$${formatNum(fin.total_vendido_general_usd)}</td>
+                  <td style="color: var(--text-muted);">Todas las ventas (${cat.toLowerCase()}s)</td>
+                </tr>
+                <tr style="background: var(--bg-alt);">
+                  <td style="font-weight: 700;">Ganancia General</td>
+                  <td class="text-right" style="font-weight: 700; color: var(--success);">${formatNum(fin.ganancia_general_bs)} Bs</td>
+                  <td class="text-right" style="color: var(--accent); font-weight: 700;">$${formatNum(fin.ganancia_general_usd)}</td>
+                  <td style="font-weight: 600;">Ventas menos Costo (${cat.toLowerCase()}s)</td>
+                </tr>
+                <tr>
+                  <td style="font-weight: 600;">Valor Stock Actual</td>
+                  <td class="text-right" style="font-weight: 600;">${formatNum(fin.valor_stock_actual_bs)} Bs</td>
+                  <td class="text-right" style="color: var(--accent); font-weight: 600;">$${formatNum(fin.valor_stock_actual_usd)}</td>
+                  <td style="color: var(--text-muted);">Valor de inventario restante</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+      finCont.innerHTML = finHtml;
+    }
+
+    // 2. Render Catálogo (Con Buscador y Paginación 5 por página)
+    function onCatalogoSearch(term) {
+      PAGINATION.catalogo.search = term.trim().toLowerCase();
+      PAGINATION.catalogo.page = 1;
+      renderCatalogo();
+    }
+
+    function cambiarPaginaCatalogo(p) {
+      PAGINATION.catalogo.page = p;
+      renderCatalogo();
+    }
+
+    function renderCatalogo() {
+      const wrapper = document.getElementById("catalogoTableWrapper");
+      const search = PAGINATION.catalogo.search;
+
+      const filtrados = STATE.productos.filter(p => {
+        if (!search) return true;
+        return (p.nombre || "").toLowerCase().includes(search) || (p.categoria || "").toLowerCase().includes(search);
+      });
+
+      if (!filtrados.length) {
+        wrapper.innerHTML = `
+          <div class="state-box">
+            <div class="state-icon">${SVG.empty}</div>
+            <div class="state-title">${search ? 'No se encontraron productos coincidentes' : 'No hay productos en el catálogo'}</div>
+            <p>${search ? 'Pruebe con otro término de búsqueda' : 'Agrega productos con el botón "+ Nuevo Producto"'}</p>
+          </div>
+        `;
+        return;
+      }
+
+      const perPage = 5;
+      const totalPages = Math.max(1, Math.ceil(filtrados.length / perPage));
+      if (PAGINATION.catalogo.page > totalPages) PAGINATION.catalogo.page = totalPages;
+      if (PAGINATION.catalogo.page < 1) PAGINATION.catalogo.page = 1;
+
+      const curPage = PAGINATION.catalogo.page;
+      const startIdx = (curPage - 1) * perPage;
+      const pageItems = filtrados.slice(startIdx, startIdx + perPage);
+
+      wrapper.innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Producto</th>
+              <th>Categoría</th>
+              <th class="text-right">Precio Compra (Bs)</th>
+              <th class="text-right">Precio Compra (USD)</th>
+              <th class="text-right">Precio Venta (Bs)</th>
+              <th class="text-right">Precio Venta (USD)</th>
+              <th class="text-center">Stock Actual</th>
+              <th class="text-center">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${pageItems.map(p => {
+              const compUsd = STATE.tasaBcv > 0 ? (p.precio_compra_actual / STATE.tasaBcv).toFixed(2) : "0.00";
+              const ventUsd = STATE.tasaBcv > 0 ? (p.precio_venta_actual / STATE.tasaBcv).toFixed(2) : "0.00";
+              return `
+                <tr>
+                  <td style="color: var(--text-muted);">${p.id}</td>
+                  <td style="font-weight: 600;">${p.nombre}</td>
+                  <td><span class="badge badge-categoria">${p.categoria}</span></td>
+                  <td class="text-right">${formatNum(p.precio_compra_actual)} Bs</td>
+                  <td class="text-right" style="color: var(--accent); font-weight: 600;">$${compUsd}</td>
+                  <td class="text-right" style="font-weight: 600;">${formatNum(p.precio_venta_actual)} Bs</td>
+                  <td class="text-right" style="color: var(--accent); font-weight: 600;">$${ventUsd}</td>
+                  <td class="text-center">
+                    <span class="badge ${p.stock > 0 ? 'badge-stock-ok' : 'badge-stock-low'}">
+                      ${p.stock} un.
+                    </span>
+                  </td>
+                  <td class="text-center">
+                    <button class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="abrirModalEditarPrecio(${p.id})">
+                      ${SVG.edit}
+                      <span>Editar</span>
+                    </button>
+                  </td>
+                </tr>
+              `;
+            }).join("")}
+          </tbody>
+        </table>
+        ${renderPaginationBar(curPage, totalPages, filtrados.length, 'cambiarPaginaCatalogo')}
+      `;
+    }
+
+    // 3. Formulario Nuevo Movimiento
+    function poblarSelectorProductos() {
+      const select = document.getElementById("movProducto");
+      if (!select) return;
+      select.innerHTML = '<option value="">Seleccione un producto...</option>' +
+        STATE.productos.map(p => `<option value="${p.id}" data-compra="${p.precio_compra_actual}" data-venta="${p.precio_venta_actual}" data-cat="${p.categoria}">${p.nombre} (${p.categoria} - Stock: ${p.stock})</option>`).join("");
+    }
+
+    function setTipoMovimiento(tipo) {
+      document.getElementById("movTipo").value = tipo;
+      const btnVenta = document.getElementById("btnTipoVenta");
+      const btnCompra = document.getElementById("btnTipoCompra");
+      const labelPu = document.getElementById("labelPrecioUnitario");
+      const labelPer = document.getElementById("labelPersona");
+
+      if (tipo === "Venta") {
+        btnVenta.classList.add("active", "venta");
+        btnCompra.classList.remove("active", "compra");
+        labelPu.textContent = "Precio de Venta (Bs)";
+        labelPer.textContent = "Cliente / Comprador";
+      } else {
+        btnCompra.classList.add("active", "compra");
+        btnVenta.classList.remove("active", "venta");
+        labelPu.textContent = "Precio de Compra (Costo Bs)";
+        labelPer.textContent = "Proveedor / Vendedor";
+      }
+      onProductoSeleccionado();
+    }
+
+    function onProductoSeleccionado() {
+      const select = document.getElementById("movProducto");
+      const opt = select.options[select.selectedIndex];
+      if (!opt || !opt.value) return;
+
+      const tipo = document.getElementById("movTipo").value;
+      const puInput = document.getElementById("movPrecioUnitario");
+
+      if (tipo === "Venta") {
+        puInput.value = opt.getAttribute("data-venta") || 0;
+      } else {
+        puInput.value = opt.getAttribute("data-compra") || 0;
+      }
+      calcularTotalEnVivo();
+    }
+
+    function calcularTotalEnVivo() {
+      const cant = parseInt(document.getElementById("movCantidad").value) || 0;
+      const pu = parseFloat(document.getElementById("movPrecioUnitario").value) || 0;
+      const totalBs = cant * pu;
+      const totalUsd = STATE.tasaBcv > 0 ? totalBs / STATE.tasaBcv : 0;
+
+      document.getElementById("movTotalEnVivoBs").textContent = `${formatNum(totalBs)} Bs`;
+      document.getElementById("movTotalEnVivoUsd").textContent = `$${formatNum(totalUsd)} USD`;
+    }
+
+    async function guardarNuevoMovimiento(e) {
+      e.preventDefault();
+      const btn = document.getElementById("btnGuardarMovimiento");
+      btn.disabled = true;
+
+      const payload = {
+        fecha: document.getElementById("movFecha").value,
+        tipo: document.getElementById("movTipo").value,
+        producto_id: parseInt(document.getElementById("movProducto").value),
+        cantidad: parseInt(document.getElementById("movCantidad").value),
+        precio_unitario_bs: parseFloat(document.getElementById("movPrecioUnitario").value),
+        tasa_bcv: STATE.tasaBcv,
+        persona_proveedor: document.getElementById("movPersona").value.trim(),
+        estado_pago: document.getElementById("movEstadoPago").value,
+        notas: document.getElementById("movNotas").value.trim(),
+      };
+
+      try {
+        const res = await fetch("/api/movimientos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (res.ok) {
+          mostrarNotificacion(`${payload.tipo} registrada exitosamente`, "success");
+          resetFormMovimiento();
+          await cargarTodo();
+          switchTab("movimientos");
+        } else {
+          const err = await res.json();
+          mostrarNotificacion(`Error: ${err.detail || 'No se pudo registrar'}`, "danger");
+        }
+      } catch (error) {
+        mostrarNotificacion("Error de conexión al guardar", "danger");
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function resetFormMovimiento() {
+      document.getElementById("formMovimiento").reset();
+      document.getElementById("movFecha").value = new Date().toISOString().split("T")[0];
+      setTipoMovimiento("Venta");
+      calcularTotalEnVivo();
+    }
+
+    // 4. Render Historial de Movimientos (Con Filtros, Buscador y Paginación 5 por página)
+    function cambiarPaginaMovimientos(p) {
+      PAGINATION.movimientos.page = p;
+      filtrarHistorial();
+    }
+
+    function renderHistorial() {
+      filtrarHistorial();
+    }
+
+    function filtrarHistorial() {
+      const wrapper = document.getElementById("movimientosTableWrapper");
+      const search = (document.getElementById("filterSearch").value || "").toLowerCase();
+      const tipo = document.getElementById("filterTipo").value;
+      const pago = document.getElementById("filterPago").value;
+
+      const filtrados = STATE.movimientos.filter(m => {
+        const matchSearch = !search ||
+          (m.persona_proveedor || "").toLowerCase().includes(search) ||
+          (m.producto_nombre || "").toLowerCase().includes(search) ||
+          (m.notas || "").toLowerCase().includes(search);
+        const matchTipo = !tipo || m.tipo === tipo;
+        const matchPago = !pago || m.estado_pago === pago;
+        return matchSearch && matchTipo && matchPago;
+      });
+
+      if (!filtrados.length) {
+        wrapper.innerHTML = `
+          <div class="state-box">
+            <div class="state-icon">${SVG.empty}</div>
+            <div class="state-title">No hay transacciones registradas</div>
+            <p>No se encontraron movimientos con los filtros aplicados</p>
+          </div>
+        `;
+        return;
+      }
+
+      const perPage = 5;
+      const totalPages = Math.max(1, Math.ceil(filtrados.length / perPage));
+      if (PAGINATION.movimientos.page > totalPages) PAGINATION.movimientos.page = totalPages;
+      if (PAGINATION.movimientos.page < 1) PAGINATION.movimientos.page = 1;
+
+      const curPage = PAGINATION.movimientos.page;
+      const startIdx = (curPage - 1) * perPage;
+      const pageItems = filtrados.slice(startIdx, startIdx + perPage);
+
+      wrapper.innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Tipo</th>
+              <th>Producto</th>
+              <th class="text-center">Cant.</th>
+              <th class="text-right">P. Unitario (Bs)</th>
+              <th class="text-right">Total (Bs)</th>
+              <th class="text-right">Total (USD)</th>
+              <th>Persona / Proveedor</th>
+              <th>Estado Pago</th>
+              <th>Notas</th>
+              <th class="text-center">Acción</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${pageItems.map(m => `
+              <tr>
+                <td style="white-space: nowrap; font-size: 0.85rem; color: var(--text-muted);">${formatearFechaVisual(m.fecha)}</td>
+                <td><span class="badge ${m.tipo === 'Compra' ? 'badge-compra' : 'badge-venta'}">${m.tipo}</span></td>
+                <td style="font-weight: 600;">${m.producto_nombre}</td>
+                <td class="text-center" style="font-weight: 700;">${m.cantidad}</td>
+                <td class="text-right">${formatNum(m.tipo === 'Compra' ? m.costo_unitario_bs : m.precio_unitario_bs)} Bs</td>
+                <td class="text-right" style="font-weight: 700;">${formatNum(m.total_bs)} Bs</td>
+                <td class="text-right" style="color: var(--accent); font-weight: 600;">$${formatNum(m.total_usd)}</td>
+                <td style="font-weight: 500;">${m.persona_proveedor || '-'}</td>
+                <td>
+                  <span class="badge ${m.estado_pago === 'Pagado' ? 'badge-pagado' : 'badge-fiado'}">
+                    ${m.estado_pago === 'Pagado' ? `${SVG.check} Pagado` : 'Fiado'}
+                  </span>
+                </td>
+                <td style="font-size: 0.85rem; color: var(--text-muted);">${m.notas || '-'}</td>
+                <td class="text-center">
+                  ${m.tipo === 'Venta' && m.estado_pago === 'Fiado' ? `
+                    <button class="btn btn-success" data-pagar-id="${m.id}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="marcarComoPagado(${m.id})">
+                      <svg class='icon icon-sm' viewBox='0 0 24 24'><path d='M22 11.08V12a10 10 0 1 1-5.93-9.14'/><polyline points='22 4 12 14.01 9 11.01'/></svg>
+                      <span>Pagado</span>
+                    </button>
+                  ` : `
+                    <button class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="eliminarMovimiento(${m.id})" title="Eliminar registro">
+                      ${SVG.trash}
+                    </button>
+                  `}
+                </td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+        ${renderPaginationBar(curPage, totalPages, filtrados.length, 'cambiarPaginaMovimientos')}
+      `;
+    }
+
+    // 5. Render Fiados (Con Buscador y Paginación 5 por página)
+    function onFiadosSearch(term) {
+      PAGINATION.fiados.search = term.trim().toLowerCase();
+      PAGINATION.fiados.page = 1;
+      renderFiados();
+    }
+
+    function cambiarPaginaFiados(p) {
+      PAGINATION.fiados.page = p;
+      renderFiados();
+    }
+
+    function renderFiados() {
+      const container = document.getElementById("fiadosContainer");
+      const badge = document.getElementById("badgeFiadosCount");
+      if (!STATE.fiados || !STATE.fiados.clientes || !STATE.fiados.clientes.length) {
+        if (badge) badge.textContent = "0";
+        document.getElementById("fiadosTotalGeneralBs").textContent = "0.00 Bs";
+        document.getElementById("fiadosTotalGeneralUsd").textContent = "$0.00 USD";
+        container.innerHTML = `
+          <div class="state-box card">
+            <div class="state-icon">${SVG.empty}</div>
+            <div class="state-title">No hay deudas pendientes</div>
+            <p>Todas las ventas están 100% pagadas y solventes.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const f = STATE.fiados;
+      if (badge) badge.textContent = f.total_deudores;
+      document.getElementById("fiadosTotalGeneralBs").textContent = `${formatNum(f.total_general_bs)} Bs`;
+      document.getElementById("fiadosTotalGeneralUsd").textContent = `$${formatNum(f.total_general_usd)} USD`;
+
+      const search = PAGINATION.fiados.search;
+      const filtrados = f.clientes.filter(c => {
+        if (!search) return true;
+        const matchName = (c.cliente || "").toLowerCase().includes(search);
+        const matchItems = (c.movimientos || []).some(m =>
+          (m.producto_nombre || "").toLowerCase().includes(search) || (m.notas || "").toLowerCase().includes(search)
+        );
+        return matchName || matchItems;
+      });
+
+      if (!filtrados.length) {
+        container.innerHTML = `
+          <div class="state-box card">
+            <div class="state-icon">${SVG.empty}</div>
+            <div class="state-title">No se encontraron clientes con '${search}'</div>
+            <p>Intente con otro nombre o limpie la búsqueda</p>
+          </div>
+        `;
+        return;
+      }
+
+      const perPage = 5;
+      const totalPages = Math.max(1, Math.ceil(filtrados.length / perPage));
+      if (PAGINATION.fiados.page > totalPages) PAGINATION.fiados.page = totalPages;
+      if (PAGINATION.fiados.page < 1) PAGINATION.fiados.page = 1;
+
+      const curPage = PAGINATION.fiados.page;
+      const startIdx = (curPage - 1) * perPage;
+      const pageItems = filtrados.slice(startIdx, startIdx + perPage);
+
+      container.innerHTML = `
+        ${pageItems.map(c => `
+          <div class="fiado-card">
+            <div class="fiado-header">
+              <div>
+                <div class="fiado-name">
+                  ${SVG.user}
+                  <span>${c.cliente}</span>
+                </div>
+                <div style="font-size: 0.85rem; color: var(--text-muted);">${c.cantidad_items} productos adeudados</div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 1rem;">
+                <div style="text-align: right;">
+                  <div class="fiado-total-bs">${formatNum(c.total_deuda_bs)} Bs</div>
+                  <div class="fiado-total-usd">$${formatNum(c.total_deuda_usd)} USD</div>
+                </div>
+              </div>
+            </div>
+
+            <table class="fiado-items-table">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Producto</th>
+                  <th class="text-center">Cant.</th>
+                  <th class="text-right">Precio Unit. (Bs)</th>
+                  <th class="text-right">Total (Bs)</th>
+                  <th class="text-right">Total (USD)</th>
+                  <th>Notas</th>
+                  <th class="text-center">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${c.movimientos.map(m => `
+                  <tr>
+                    <td>${formatearFechaVisual(m.fecha)}</td>
+                    <td style="font-weight: 600;">${m.producto_nombre}</td>
+                    <td class="text-center">${m.cantidad}</td>
+                    <td class="text-right">${formatNum(m.precio_unitario_bs)} Bs</td>
+                    <td class="text-right" style="font-weight: 700; color: var(--danger);">${formatNum(m.total_bs)} Bs</td>
+                    <td class="text-right" style="color: var(--accent); font-weight: 600;">$${formatNum(m.total_usd)}</td>
+                    <td style="color: var(--text-muted);">${m.notas || '-'}</td>
+                    <td class="text-center">
+                      <button class="btn btn-success" data-pagar-id="${m.id}" style="padding: 0.25rem 0.75rem; font-size: 0.8rem; font-weight: 700; gap: 0.35rem;" onclick="marcarComoPagado(${m.id})">
+                        <svg class='icon icon-sm' viewBox='0 0 24 24'><path d='M22 11.08V12a10 10 0 1 1-5.93-9.14'/><polyline points='22 4 12 14.01 9 11.01'/></svg>
+                        <span>Pagado</span>
+                      </button>
+                    </td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        `).join("")}
+        <div class="table-container" style="margin-top: 0.5rem;">
+          ${renderPaginationBar(curPage, totalPages, filtrados.length, 'cambiarPaginaFiados')}
+        </div>
+      `;
+    }
+
+    // 6. Render Finanzas Mensuales (Con Gráficos Visuales y Tabla Paginada 5/pág)
+    function onFinanzasSearch(term) {
+      PAGINATION.finanzas.search = term.trim().toLowerCase();
+      PAGINATION.finanzas.page = 1;
+      renderTablaFinanzas();
+    }
+
+    function cambiarPaginaFinanzas(p) {
+      PAGINATION.finanzas.page = p;
+      renderTablaFinanzas();
+    }
+
+    function renderFinanzas() {
+      renderGraficosFinanzas(STATE.finanzas);
+      renderTablaFinanzas();
+    }
+
+    function renderGraficosFinanzas(finanzas) {
+      const container = document.getElementById("finanzasAnalyticsContainer");
+      if (!container) return;
+
+      if (!finanzas || !finanzas.length) {
+        container.innerHTML = "";
+        return;
+      }
+
+      // 1. Cálculos de Ratios Financieros Globales
+      let totalComprado = 0;
+      let totalVendidoPagado = 0;
+      let totalFiado = 0;
+      let totalVendido = 0;
+      let costoVentas = 0;
+      let gananciaNeta = 0;
+      let porCategoria = {};
+
+      finanzas.forEach(f => {
+        const comp = f.total_comprado_bs || 0;
+        const ventPag = f.total_vendido_pagado_bs || 0;
+        const fiad = f.total_fiado_bs || 0;
+        const ventGen = f.total_vendido_general_bs || 0;
+        const costo = f.costo_ventas_bs || 0;
+        const gan = f.ganancia_bs || 0;
+
+        totalComprado += comp;
+        totalVendidoPagado += ventPag;
+        totalFiado += fiad;
+        totalVendido += ventGen;
+        costoVentas += costo;
+        gananciaNeta += gan;
+
+        const cat = f.categoria || "General";
+        if (!porCategoria[cat]) {
+          porCategoria[cat] = { ventas: 0, ganancia: 0, costo: 0, fiado: 0 };
+        }
+        porCategoria[cat].ventas += ventGen;
+        porCategoria[cat].ganancia += gan;
+        porCategoria[cat].costo += costo;
+        porCategoria[cat].fiado += fiad;
+      });
+
+      const margenNeto = totalVendido > 0 ? ((gananciaNeta / totalVendido) * 100).toFixed(1) : "0.0";
+      const tasaCobro = totalVendido > 0 ? ((totalVendidoPagado / totalVendido) * 100).toFixed(1) : "0.0";
+      const roi = costoVentas > 0 ? ((gananciaNeta / costoVentas) * 100).toFixed(1) : "0.0";
+      const gananciaUsd = STATE.tasaBcv > 0 ? (gananciaNeta / STATE.tasaBcv).toFixed(2) : "0.00";
+
+      // 2. Gráfico SVG de Barras (Desempeño Financiero)
+      const itemsGrafico = finanzas.slice(0, 6);
+      const maxVal = Math.max(...itemsGrafico.map(f => Math.max(f.total_vendido_general_bs || 0, f.costo_ventas_bs || 0, f.ganancia_bs || 0)), 1000);
+
+      const chartH = 190;
+      const chartW = 540;
+      const nItems = itemsGrafico.length || 1;
+      const groupWidth = (chartW - 40) / nItems;
+
+      const barsSvg = itemsGrafico.map((item, idx) => {
+        const xBase = 35 + idx * groupWidth + (groupWidth * 0.1);
+        const barW = Math.min(18, groupWidth * 0.22);
+        const space = 3;
+
+        const vH = Math.max(4, ((item.total_vendido_general_bs || 0) / maxVal) * (chartH - 45));
+        const cH = Math.max(4, ((item.costo_ventas_bs || 0) / maxVal) * (chartH - 45));
+        const gH = Math.max(4, ((item.ganancia_bs || 0) / maxVal) * (chartH - 45));
+
+        const yV = chartH - 25 - vH;
+        const yC = chartH - 25 - cH;
+        const yG = chartH - 25 - gH;
+
+        const label = `${item.mes.slice(5)} ${item.categoria.slice(0, 4)}`;
+
+        return `
+          <g class="chart-group">
+            <!-- Barra Ventas (Azul) -->
+            <rect x="${xBase}" y="${yV}" width="${barW}" height="${vH}" rx="3" fill="var(--info)">
+              <title>Ventas ${item.categoria} (${item.mes}): ${formatNum(item.total_vendido_general_bs)} Bs</title>
+            </rect>
+            <!-- Barra Costos (Subtle) -->
+            <rect x="${xBase + barW + space}" y="${yC}" width="${barW}" height="${cH}" rx="3" fill="var(--text-subtle)">
+              <title>Costo ${item.categoria} (${item.mes}): ${formatNum(item.costo_ventas_bs)} Bs</title>
+            </rect>
+            <!-- Barra Ganancia (Verde) -->
+            <rect x="${xBase + (barW + space) * 2}" y="${yG}" width="${barW}" height="${gH}" rx="3" fill="var(--success)">
+              <title>Ganancia Neta ${item.categoria} (${item.mes}): ${formatNum(item.ganancia_bs)} Bs</title>
+            </rect>
+            <!-- Etiqueta X -->
+            <text x="${xBase + (barW * 1.5) + space}" y="${chartH - 8}" text-anchor="middle" font-size="10" fill="var(--text-muted)" font-weight="600">${label}</text>
+          </g>
+        `;
+      }).join("");
+
+      // 3. Barras de Aporte por Categoría
+      const totalVentasCat = Object.values(porCategoria).reduce((a, b) => a + b.ventas, 0) || 1;
+      const catProgressHtml = Object.entries(porCategoria).map(([cat, val]) => {
+        const pctVentas = ((val.ventas / totalVentasCat) * 100).toFixed(1);
+        const pctGan = ((val.ganancia / (gananciaNeta || 1)) * 100).toFixed(1);
+        const color = cat === "Refresco" ? "var(--accent)" : "var(--info)";
+        return `
+          <div class="category-progress-item">
+            <div class="cat-prog-header">
+              <span>${cat}</span>
+              <span style="font-weight: 700; color: ${color};">${pctVentas}% de ventas (${formatNum(val.ventas)} Bs)</span>
+            </div>
+            <div class="cat-prog-track">
+              <div class="cat-prog-fill" style="width: ${pctVentas}%; background: ${color};"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+              <span>Ganancia: ${formatNum(val.ganancia)} Bs (${pctGan}%)</span>
+              <span>Fiado: ${formatNum(val.fiado)} Bs</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      // 4. Barra de Flujo de Cobro (Efectivo vs Fiados)
+      const pctPagado = totalVendido > 0 ? ((totalVendidoPagado / totalVendido) * 100).toFixed(1) : 0;
+      const pctFiado = totalVendido > 0 ? ((totalFiado / totalVendido) * 100).toFixed(1) : 0;
+
+      container.innerHTML = `
+        <!-- Fila 1: KPIs de Rendimiento Financiero -->
+        <div class="kpi-cards-grid">
+          <div class="kpi-card" style="border-left: 4px solid var(--success);">
+            <div class="kpi-label">
+              <span>Margen Neto</span>
+              <svg class="icon icon-sm" viewBox="0 0 24 24"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+            </div>
+            <div class="kpi-value" style="color: var(--success);">${margenNeto}%</div>
+            <div class="kpi-subtitle">Utilidad sobre ventas totales</div>
+          </div>
+
+          <div class="kpi-card" style="border-left: 4px solid var(--info);">
+            <div class="kpi-label">
+              <span>Efectividad Cobro</span>
+              <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+            <div class="kpi-value" style="color: var(--info);">${tasaCobro}%</div>
+            <div class="kpi-subtitle">${formatNum(totalVendidoPagado)} Bs cobrados</div>
+          </div>
+
+          <div class="kpi-card" style="border-left: 4px solid var(--accent);">
+            <div class="kpi-label">
+              <span>Retorno s/ Costo</span>
+              <svg class="icon icon-sm" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+            </div>
+            <div class="kpi-value" style="color: var(--accent);">${roi}%</div>
+            <div class="kpi-subtitle">Rendimiento sobre inversión</div>
+          </div>
+
+          <div class="kpi-card" style="border-left: 4px solid var(--success);">
+            <div class="kpi-label">
+              <span>Ganancia Neta Total</span>
+              <svg class="icon icon-sm" viewBox="0 0 24 24"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
+            </div>
+            <div class="kpi-value">${formatNum(gananciaNeta)} Bs</div>
+            <div class="kpi-subtitle" style="font-weight: 700; color: var(--accent);">$${gananciaUsd} USD (BCV)</div>
+          </div>
+        </div>
+
+        <!-- Fila 2: Gráficos Visuales de Crecimiento y Rendimiento -->
+        <div class="charts-row-grid">
+          <!-- Gráfico de Barras: Comparativa Mensual -->
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <div class="chart-card-title">
+                <svg class="icon icon-md" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                <span>Desempeño Financiero Mensual (Ventas vs Costos vs Ganancia)</span>
+              </div>
+              <div class="chart-legend">
+                <div class="legend-item"><div class="legend-color" style="background: var(--info);"></div><span>Ventas</span></div>
+                <div class="legend-item"><div class="legend-color" style="background: var(--text-subtle);"></div><span>Costo</span></div>
+                <div class="legend-item"><div class="legend-color" style="background: var(--success);"></div><span>Ganancia</span></div>
+              </div>
+            </div>
+            <div class="svg-chart-container">
+              <svg width="100%" height="210" viewBox="0 0 ${chartW} ${chartH}" preserveAspectRatio="xMidYMid meet">
+                <line x1="20" y1="30" x2="${chartW - 20}" y2="30" stroke="var(--border)" stroke-dasharray="3 3"/>
+                <line x1="20" y1="75" x2="${chartW - 20}" y2="75" stroke="var(--border)" stroke-dasharray="3 3"/>
+                <line x1="20" y1="120" x2="${chartW - 20}" y2="120" stroke="var(--border)" stroke-dasharray="3 3"/>
+                <line x1="20" y1="${chartH - 25}" x2="${chartW - 20}" y2="${chartH - 25}" stroke="var(--border)"/>
+                ${barsSvg}
+              </svg>
+            </div>
+          </div>
+
+          <!-- Gráfico Lateral: Aporte por Categoría y Liquidez -->
+          <div class="chart-card">
+            <div class="chart-card-header">
+              <div class="chart-card-title">
+                <svg class="icon icon-md" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+                <span>Composición por Categoría</span>
+              </div>
+            </div>
+
+            <div>
+              ${catProgressHtml}
+            </div>
+
+            <div style="margin-top: 1.15rem; border-top: 1px solid var(--border); padding-top: 0.85rem;">
+              <div class="cat-prog-header">
+                <span>Estado de Cobro (Liquidez)</span>
+                <span style="font-weight: 700; color: var(--success);">${pctPagado}% Cobrado</span>
+              </div>
+              <div class="cat-prog-track" style="height: 12px;">
+                <div class="cat-prog-fill" style="width: ${pctPagado}%; background: var(--success);" title="Pagado: ${formatNum(totalVendidoPagado)} Bs"></div>
+                <div class="cat-prog-fill" style="width: ${pctFiado}%; background: var(--danger);" title="Fiado: ${formatNum(totalFiado)} Bs"></div>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem;">
+                <span style="color: var(--success); font-weight: 600;">Efectivo: ${formatNum(totalVendidoPagado)} Bs</span>
+                <span style="color: var(--danger); font-weight: 600;">Fiado: ${formatNum(totalFiado)} Bs (${pctFiado}%)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderTablaFinanzas() {
+      const wrapper = document.getElementById("finanzasTableWrapper");
+      const search = PAGINATION.finanzas.search;
+
+      const filtrados = STATE.finanzas.filter(f => {
+        if (!search) return true;
+        return (f.mes || "").toLowerCase().includes(search) || (f.categoria || "").toLowerCase().includes(search);
+      });
+
+      if (!filtrados.length) {
+        wrapper.innerHTML = `
+          <div class="state-box">
+            <div class="state-icon">${SVG.empty}</div>
+            <div class="state-title">${search ? 'No se encontraron registros con este filtro' : 'No hay datos financieros registrados'}</div>
+          </div>
+        `;
+        return;
+      }
+
+      const perPage = 5;
+      const totalPages = Math.max(1, Math.ceil(filtrados.length / perPage));
+      if (PAGINATION.finanzas.page > totalPages) PAGINATION.finanzas.page = totalPages;
+      if (PAGINATION.finanzas.page < 1) PAGINATION.finanzas.page = 1;
+
+      const curPage = PAGINATION.finanzas.page;
+      const startIdx = (curPage - 1) * perPage;
+      const pageItems = filtrados.slice(startIdx, startIdx + perPage);
+
+      wrapper.innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>Año-Mes</th>
+              <th>Categoría</th>
+              <th class="text-right">Total Comprado (Bs)</th>
+              <th class="text-right">Total Vendido Pagado (Bs)</th>
+              <th class="text-right">Total Fiado (Bs)</th>
+              <th class="text-right">Total Vendido General (Bs)</th>
+              <th class="text-right">Costo Ventas (Bs)</th>
+              <th class="text-right">Ganancia (Bs)</th>
+              <th class="text-right">Inversión Acumulada (Bs)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${pageItems.map(f => `
+              <tr>
+                <td style="font-weight: 700;">${f.mes}</td>
+                <td><span class="badge badge-categoria">${f.categoria}</span></td>
+                <td class="text-right">${formatNum(f.total_comprado_bs)} Bs</td>
+                <td class="text-right" style="color: var(--success); font-weight: 600;">${formatNum(f.total_vendido_pagado_bs)} Bs</td>
+                <td class="text-right" style="color: var(--danger); font-weight: 600;">${formatNum(f.total_fiado_bs)} Bs</td>
+                <td class="text-right" style="font-weight: 600;">${formatNum(f.total_vendido_general_bs)} Bs</td>
+                <td class="text-right" style="color: var(--text-muted);">${formatNum(f.costo_ventas_bs)} Bs</td>
+                <td class="text-right" style="color: var(--success); font-weight: 700;">${formatNum(f.ganancia_bs)} Bs</td>
+                <td class="text-right" style="font-weight: 600; color: ${f.inversion_acumulada_bs >= 0 ? 'var(--text)' : 'var(--danger)'};">
+                  ${formatNum(f.inversion_acumulada_bs)} Bs
+                </td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+        ${renderPaginationBar(curPage, totalPages, filtrados.length, 'cambiarPaginaFinanzas')}
+      `;
+    }
+
+    // -----------------------------------------------------------------------
+    // Acciones de Negocio (Pagar, Eliminar, Editar Precios, Sincronizar)
+    // -----------------------------------------------------------------------
+    async function marcarComoPagado(movId) {
+      // Ejecuta directo sin confirmación: el botón ya es la acción
+      try {
+        const btn = document.querySelector(`[data-pagar-id="${movId}"]`);
+        if (btn) { btn.disabled = true; btn.textContent = "..."; }
+
+        const res = await fetch(`/api/movimientos/${movId}/pagar`, { method: "PUT" });
+        if (res.ok) {
+          mostrarNotificacion("✓ Pago registrado correctamente", "success");
+          await cargarTodo();
+        } else {
+          mostrarNotificacion("Error al registrar el pago", "danger");
+          if (btn) { btn.disabled = false; btn.textContent = "Pagado"; }
+        }
+      } catch (e) {
+        mostrarNotificacion("Error de conexión", "danger");
+      }
+    }
+
+    async function eliminarMovimiento(movId) {
+      if (!confirm("¿Seguro que desea eliminar esta transacción? El stock se recalculará automáticamente.")) return;
+
+      try {
+        const res = await fetch(`/api/movimientos/${movId}`, { method: "DELETE" });
+        if (res.ok) {
+          mostrarNotificacion("Transacción eliminada", "success");
+          await cargarTodo();
+        } else {
+          mostrarNotificacion("No se pudo eliminar el movimiento", "danger");
+        }
+      } catch (e) {
+        mostrarNotificacion("Error de conexión", "danger");
+      }
+    }
+
+    function abrirModalEditarPrecio(prodId) {
+      const prod = STATE.productos.find(p => p.id === prodId);
+      if (!prod) return;
+
+      document.getElementById("editProdId").value = prod.id;
+      document.getElementById("modalEditProdTitle").innerHTML = `${SVG.edit} <span>Editar: ${prod.nombre}</span>`;
+      document.getElementById("editProdCategoria").value = prod.categoria;
+      document.getElementById("editProdCompraBs").value = prod.precio_compra_actual;
+      document.getElementById("editProdVentaBs").value = prod.precio_venta_actual;
+
+      document.getElementById("modalEditarPrecio").classList.add("active");
+    }
+
+    async function guardarEdicionPrecio(e) {
+      e.preventDefault();
+      const id = document.getElementById("editProdId").value;
+      const payload = {
+        categoria: document.getElementById("editProdCategoria").value.trim(),
+        precio_compra_actual: parseFloat(document.getElementById("editProdCompraBs").value),
+        precio_venta_actual: parseFloat(document.getElementById("editProdVentaBs").value),
+      };
+
+      try {
+        const res = await fetch(`/api/productos/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (res.ok) {
+          mostrarNotificacion("Precios actualizados con éxito", "success");
+          cerrarModal("modalEditarPrecio");
+          await cargarTodo();
+        } else {
+          mostrarNotificacion("Error al guardar cambios de precios", "danger");
+        }
+      } catch (e) {
+        mostrarNotificacion("Error de conexión", "danger");
+      }
+    }
+
+    function abrirModalNuevoProducto() {
+      document.getElementById("modalNuevoProducto").classList.add("active");
+    }
+
+    async function guardarNuevoProducto(e) {
+      e.preventDefault();
+      const payload = {
+        nombre: document.getElementById("newProdNombre").value.trim(),
+        categoria: document.getElementById("newProdCategoria").value,
+        precio_compra_actual: parseFloat(document.getElementById("newProdCompraBs").value) || 0,
+        precio_venta_actual: parseFloat(document.getElementById("newProdVentaBs").value) || 0,
+      };
+
+      try {
+        const res = await fetch("/api/productos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (res.ok) {
+          mostrarNotificacion(`Producto ${payload.nombre} creado con éxito`, "success");
+          cerrarModal("modalNuevoProducto");
+          await cargarTodo();
+        } else {
+          const err = await res.json();
+          mostrarNotificacion(`Error: ${err.detail || 'No se pudo crear'}`, "danger");
+        }
+      } catch (e) {
+        mostrarNotificacion("Error de conexión al crear producto", "danger");
+      }
+    }
+
+    function cerrarModal(modalId) {
+      const el = document.getElementById(modalId);
+      if (el) el.classList.remove("active");
+    }
+
+    async function sincronizarConEscritorio() {
+      if (!confirm("¿Desea sincronizar todos los datos desde el archivo Excel del escritorio?")) return;
+
+      mostrarNotificacion("Sincronizando datos con Excel del escritorio...", "info");
+      try {
+        const res = await fetch("/api/excel/importar", { method: "POST" });
+        if (res.ok) {
+          const data = await res.json();
+          mostrarNotificacion(data.mensaje || "Datos sincronizados exitosamente", "success");
+          await cargarTodo();
+        } else {
+          const err = await res.json();
+          mostrarNotificacion(`Error: ${err.detail || 'Fallo en la importación'}`, "danger");
+        }
+      } catch (e) {
+        mostrarNotificacion("Error de conexión al sincronizar", "danger");
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // Utilidades
+    // -----------------------------------------------------------------------
+    function formatNum(val) {
+      if (val === undefined || val === null || isNaN(val)) return "0.00";
+      return Number(val).toLocaleString("es-VE", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+    }
+
+    function formatearFechaVisual(fechaIso) {
+      if (!fechaIso) return "-";
+      try {
+        const [y, m, d] = fechaIso.split("-");
+        return `${d}/${m}/${y}`;
+      } catch {
+        return fechaIso;
+      }
+    }
+
+    function mostrarNotificacion(texto, tipo = "info") {
+      const cont = document.getElementById("toastContainer");
+      const toast = document.createElement("div");
+      toast.className = `toast ${tipo}`;
+      const iconSvg = tipo === "success" ? SVG.check : (tipo === "danger" ? SVG.alert : SVG.table);
+      toast.innerHTML = `${iconSvg} <span>${texto}</span>`;
+      cont.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.animation = "slideIn 0.2s ease reverse forwards";
+        setTimeout(() => toast.remove(), 200);
+      }, 3500);
+    }
+  </script>
+</body>
+</html>

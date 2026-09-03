@@ -1,0 +1,32 @@
+# Variables de entorno — NUNCA subir al repositorio
+.env
+*.env
+
+# Entorno virtual Python
+venv/
+.venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Base de datos local de desarrollo
+inventario_casa.db
+*.db
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Vercel
+.vercel/
+
+# Temp files
+temp_inventario.xlsx
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
