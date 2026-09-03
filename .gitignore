@@ -24,9 +24,13 @@ Thumbs.db
 
 # Temp files
 temp_inventario.xlsx
+test_bcv.py
 
 # Editor
 .vscode/
 .idea/
 *.swp
 *.swo
+
+.vercel
+.env*
