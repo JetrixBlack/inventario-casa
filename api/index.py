@@ -59,10 +59,10 @@ class _Row:
 
 class _TursoCursor:
     """Cursor-like wrapper para resultados Turso."""
-    def __init__(self, columns, rows):
+    def __init__(self, columns, rows, lastrowid=None):
         self._columns = columns
         self._rows = rows
-        self.lastrowid = None
+        self.lastrowid = lastrowid
         self.rowcount = len(rows)
     def fetchall(self):
         return [_Row(self._columns, r) for r in self._rows]
@@ -70,34 +70,81 @@ class _TursoCursor:
         return _Row(self._columns, self._rows[0]) if self._rows else None
 
 
+def _turso_value(v):
+    """Convierte un valor Python al formato de Value esperado por Turso pipeline."""
+    if v is None:
+        return "null"
+    if isinstance(v, bool):
+        return {"type": "integer", "value": "1" if v else "0"}
+    if isinstance(v, int):
+        return {"type": "integer", "value": str(v)}
+    if isinstance(v, float):
+        return {"type": "float", "value": float(v)}
+    return {"type": "text", "value": str(v)}
+
+
+def _turso_parse_rows(rows):
+    """Convierte filas con formato Value de Turso a valores Python planos."""
+    out = []
+    for row in rows:
+        parsed = []
+        for cell in row:
+            if isinstance(cell, dict):
+                vt = cell.get("type")
+                vv = cell.get("value")
+                if vt == "integer":
+                    parsed.append(int(vv))
+                elif vt == "float":
+                    parsed.append(float(vv))
+                elif vt == "text":
+                    parsed.append(vv)
+                elif vt == "blob":
+                    parsed.append(vv)
+                elif vt == "null":
+                    parsed.append(None)
+                else:
+                    parsed.append(vv)
+            else:
+                parsed.append(cell)
+        out.append(parsed)
+    return out
+
+
 class _TursoConnection:
-    """Conexión a Turso vía REST API (httpx). Compatible con sqlite3 API."""
+    """Conexi��n a Turso v��a REST API (httpx). Compatible con sqlite3 API."""
     def __init__(self, url, token):
-        self._url = url.rstrip("/")
+        u = url.rstrip("/")
+        if u.startswith("libsql://"):
+            u = "https://" + u[len("libsql://"):]
+        self._url = u
         self._token = token
     def execute(self, sql, params=()):
+        args = [_turso_value(p) for p in (params or [])] if params else []
         resp = httpx.post(
             f"{self._url}/v2/pipeline",
             headers={
                 "Authorization": f"Bearer {self._token}",
                 "Content-Type": "application/json",
             },
-            json={"requests": [{"type": "execute", "stmt": {"sql": sql, "args": list(params)}}]},
+            json={"requests": [{"type": "execute", "stmt": {"sql": sql, "args": args}}]},
             timeout=30.0,
         )
         resp.raise_for_status()
         data = resp.json()
         result = data["results"][0]
         if result.get("type") == "error":
-            msg = result.get("message", "")
+            msg = result.get("error", {}).get("message", "") or result.get("message", "")
             if "UNIQUE" in msg or "constraint" in msg.lower():
                 raise Exception(f"IntegrityError: {msg}")
             raise Exception(f"DB Error: {msg}")
-        cols = [c["name"] for c in result.get("result", {}).get("columns", [])]
-        rows = result.get("result", {}).get("rows", [])
+        result_map = result.get("result") or result.get("response", {}).get("result", {})
+        cols = [c["name"] for c in result_map.get("cols", [])]
+        raw_rows = result_map.get("rows", [])
+        rows = _turso_parse_rows(raw_rows)
         lastrowid = None
-        if result.get("result", {}).get("last_insert_rowid") is not None:
-            lastrowid = int(result["result"]["last_insert_rowid"])
+        lir = result_map.get("last_insert_rowid")
+        if lir is not None:
+            lastrowid = int(lir)
         return _TursoCursor(cols, rows, lastrowid=lastrowid)
     def executemany(self, sql, params_list):
         last = None
