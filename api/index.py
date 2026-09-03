@@ -3,8 +3,8 @@ Inventario Casa - Backend FastAPI Optimizado (Python Nativo)
 Sistema de gestión de inventario, ventas, finanzas familiares y sincronización con Excel.
 
 Características:
-  - 100% Python Nativo con SQLite 3 (inventario_casa.db)
-  - Consultas instantáneas con sqlite3.Row, WAL mode y foreign keys
+  - Backend dual: SQLite local (desarrollo) + Turso cloud (producción/Vercel)
+  - Consultas instantáneas con Row dict-like + foreign keys
   - Tasa BCV en tiempo real con fallback inteligente
   - Mapeo exacto de reglas de negocio del Excel
   - Importación y exportación bidireccional en formato .xlsx (openpyxl)
@@ -13,6 +13,7 @@ Características:
 import os
 import re
 import time
+import json
 import sqlite3
 import datetime
 from contextlib import contextmanager
@@ -28,6 +29,156 @@ from pydantic import BaseModel
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
+
+
+# ---------------------------------------------------------------------------
+# Capa de Base de Datos Dual: SQLite local / Turso cloud (Vercel)
+# ---------------------------------------------------------------------------
+
+class _Row:
+    """Wrapper que permite acceso por índice y por nombre de columna."""
+    def __init__(self, columns, values):
+        self._columns = columns
+        self._values = values
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return self._values[key]
+        if isinstance(key, str):
+            idx = self._columns.index(key)
+            return self._values[idx]
+        raise TypeError(f"Key must be int or str, got {type(key)}")
+    def __contains__(self, key):
+        return key in self._columns
+    def keys(self):
+        return self._columns
+    def __iter__(self):
+        return iter(self._columns)
+    def __len__(self):
+        return len(self._values)
+
+
+class _TursoCursor:
+    """Cursor-like wrapper para resultados Turso."""
+    def __init__(self, columns, rows):
+        self._columns = columns
+        self._rows = rows
+        self.lastrowid = None
+        self.rowcount = len(rows)
+    def fetchall(self):
+        return [_Row(self._columns, r) for r in self._rows]
+    def fetchone(self):
+        return _Row(self._columns, self._rows[0]) if self._rows else None
+
+
+class _TursoConnection:
+    """Conexión a Turso vía REST API (httpx). Compatible con sqlite3 API."""
+    def __init__(self, url, token):
+        self._url = url.rstrip("/")
+        self._token = token
+    def execute(self, sql, params=()):
+        resp = httpx.post(
+            f"{self._url}/v2/pipeline",
+            headers={
+                "Authorization": f"Bearer {self._token}",
+                "Content-Type": "application/json",
+            },
+            json={"requests": [{"type": "execute", "stmt": {"sql": sql, "args": list(params)}}]},
+            timeout=30.0,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        result = data["results"][0]
+        if result.get("type") == "error":
+            msg = result.get("message", "")
+            if "UNIQUE" in msg or "constraint" in msg.lower():
+                raise Exception(f"IntegrityError: {msg}")
+            raise Exception(f"DB Error: {msg}")
+        cols = [c["name"] for c in result.get("result", {}).get("columns", [])]
+        rows = result.get("result", {}).get("rows", [])
+        lastrowid = None
+        if result.get("result", {}).get("last_insert_rowid") is not None:
+            lastrowid = int(result["result"]["last_insert_rowid"])
+        return _TursoCursor(cols, rows, lastrowid=lastrowid)
+    def executemany(self, sql, params_list):
+        last = None
+        count = 0
+        for params in params_list:
+            cur = self.execute(sql, params)
+            last = cur
+            count += cur.rowcount
+        return last
+    def commit(self):
+        pass
+    def close(self):
+        pass
+
+
+class _LocalConnection:
+    """Envoltorio para sqlite3 local (desarrollo)."""
+    def __init__(self, path):
+        self._conn = sqlite3.connect(path)
+        self._conn.row_factory = sqlite3.Row
+        self._conn.execute("PRAGMA journal_mode=WAL")
+        self._conn.execute("PRAGMA foreign_keys=ON")
+    def execute(self, sql, params=()):
+        return self._conn.execute(sql, params)
+    def executemany(self, sql, params_list):
+        return self._conn.executemany(sql, params_list)
+    def commit(self):
+        self._conn.commit()
+    def rollback(self):
+        self._conn.rollback()
+    def close(self):
+        self._conn.close()
+
+
+TURSO_URL = os.environ.get("TURSO_DATABASE_URL", "")
+TURSO_TOKEN = os.environ.get("TURSO_AUTH_TOKEN", "")
+
+
+@contextmanager
+def get_db():
+    """Context manager para conexiones seguras. Turso en Vercel, SQLite local."""
+    if TURSO_URL and TURSO_TOKEN:
+        conn = _TursoConnection(TURSO_URL, TURSO_TOKEN)
+    else:
+        conn = _LocalConnection(DB_PATH)
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        if hasattr(conn, 'rollback'):
+            conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def query_all(sql: str, params: tuple = ()) -> List[Dict[str, Any]]:
+    """Ejecuta una consulta SELECT y retorna una lista de diccionarios."""
+    with get_db() as conn:
+        cur = conn.execute(sql, params)
+        return [dict(zip(row._columns, row._values)) for row in cur.fetchall()]
+
+
+def query_one(sql: str, params: tuple = ()) -> Optional[Dict[str, Any]]:
+    """Ejecuta una consulta SELECT y retorna un diccionario o None."""
+    with get_db() as conn:
+        cur = conn.execute(sql, params)
+        row = cur.fetchone()
+        if row is None:
+            return None
+        return dict(zip(row._columns, row._values))
+
+
+def execute_sql(sql: str, params: tuple = ()) -> Dict[str, Any]:
+    """Ejecuta INSERT, UPDATE o DELETE y retorna metadatos."""
+    with get_db() as conn:
+        cur = conn.execute(sql, params)
+        return {
+            "last_insert_rowid": cur.lastrowid,
+            "affected_rows": cur.rowcount,
+        }
 
 # ---------------------------------------------------------------------------
 # Rutas y Constantes
@@ -56,50 +207,8 @@ app.add_middleware(
 
 
 # ---------------------------------------------------------------------------
-# Manejo de Base de Datos SQLite Nativa
+# Manejo de Base de Datos — funciones auxiliares
 # ---------------------------------------------------------------------------
-
-@contextmanager
-def get_db():
-    """Context manager para conexiones SQLite seguras y rápidas."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
-    try:
-        yield conn
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
-
-
-def query_all(sql: str, params: tuple = ()) -> List[Dict[str, Any]]:
-    """Ejecuta una consulta SELECT y retorna una lista de diccionarios."""
-    with get_db() as conn:
-        cur = conn.execute(sql, params)
-        return [dict(row) for row in cur.fetchall()]
-
-
-def query_one(sql: str, params: tuple = ()) -> Optional[Dict[str, Any]]:
-    """Ejecuta una consulta SELECT y retorna un diccionario o None."""
-    with get_db() as conn:
-        cur = conn.execute(sql, params)
-        row = cur.fetchone()
-        return dict(row) if row else None
-
-
-def execute_sql(sql: str, params: tuple = ()) -> Dict[str, Any]:
-    """Ejecuta INSERT, UPDATE o DELETE y retorna metadatos."""
-    with get_db() as conn:
-        cur = conn.execute(sql, params)
-        return {
-            "last_insert_rowid": cur.lastrowid,
-            "affected_rows": cur.rowcount,
-        }
-
 
 # ---------------------------------------------------------------------------
 # Esquema e Inicialización de Base de Datos
@@ -153,28 +262,29 @@ PRODUCTOS_INICIALES = [
 
 
 def init_database():
-    """Inicializa tablas y siembra datos iniciales o importa desde el Excel del escritorio."""
+    """Inicializa tablas y siembra datos iniciales."""
     with get_db() as conn:
         for stmt in SCHEMA_SQL:
             conn.execute(stmt)
 
-        prod_count = conn.execute("SELECT COUNT(*) FROM productos").fetchone()[0]
-        mov_count = conn.execute("SELECT COUNT(*) FROM movimientos").fetchone()[0]
+        # Verificar si ya hay datos (solo para Turso, en SQLite siempre funciona)
+        if TURSO_URL and TURSO_TOKEN:
+            try:
+                cur = conn.execute("SELECT COUNT(*) FROM productos")
+                row = cur.fetchone()
+                prod_count = row[0] if row else 0
+            except Exception:
+                prod_count = 0
+        else:
+            cur = conn.execute("SELECT COUNT(*) FROM productos")
+            prod_count = cur.fetchone()[0]
 
-        # Si la base de datos está vacía, intentar cargar desde el Excel del escritorio
         if prod_count == 0:
-            if os.path.exists(EXCEL_DESKTOP_PATH):
-                print(f"[OK] Importando datos iniciales desde {EXCEL_DESKTOP_PATH}")
-                importar_desde_excel_file(EXCEL_DESKTOP_PATH, conn)
-            else:
-                conn.executemany(
-                    "INSERT INTO productos (nombre, categoria, precio_compra_actual, precio_venta_actual) VALUES (?, ?, ?, ?)",
-                    PRODUCTOS_INICIALES,
-                )
-        elif mov_count <= 2 and os.path.exists(EXCEL_DESKTOP_PATH):
-            # Si solo tenía datos de prueba, sincronizar movimientos completos del Excel
-            print(f"[OK] Sincronizando historial completo desde {EXCEL_DESKTOP_PATH}")
-            importar_desde_excel_file(EXCEL_DESKTOP_PATH, conn)
+            conn.executemany(
+                "INSERT INTO productos (nombre, categoria, precio_compra_actual, precio_venta_actual) VALUES (?, ?, ?, ?)",
+                PRODUCTOS_INICIALES,
+            )
+            print(f"[OK] {len(PRODUCTOS_INICIALES)} productos iniciales sembrados.")
 
 
 @app.on_event("startup")
@@ -784,8 +894,10 @@ async def create_producto(data: ProductoCreate):
             (data.nombre.strip(), data.categoria.strip(), data.precio_compra_actual, data.precio_venta_actual),
         )
         return {"id": res["last_insert_rowid"], "mensaje": "Producto creado con éxito"}
-    except sqlite3.IntegrityError:
-        raise HTTPException(400, detail="Ya existe un producto con este nombre")
+    except Exception as e:
+        if "UNIQUE" in str(e) or "constraint" in str(e).lower():
+            raise HTTPException(400, detail="Ya existe un producto con este nombre")
+        raise HTTPException(500, detail=f"Error creando producto: {str(e)}")
 
 
 @app.put("/api/productos/{producto_id}")
