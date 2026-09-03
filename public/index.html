@@ -1505,15 +1505,22 @@
               </div>
 
               <!-- Total Calculado en Vivo -->
-              <div class="card" style="background: var(--bg-alt); margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center;">
+              <div class="card" style="background: var(--bg-alt); margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
                 <div>
-                  <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">TOTAL CALCULADO</div>
+                  <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);" id="movTotalLabel">TOTAL CALCULADO</div>
                   <div style="font-size: 1.4rem; font-weight: 700;" id="movTotalEnVivoBs">0.00 Bs</div>
                 </div>
                 <div style="text-align: right;">
                   <div style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">EQUIVALENTE USD (BCV)</div>
                   <div style="font-size: 1.1rem; font-weight: 700; color: var(--accent);" id="movTotalEnVivoUsd">$0.00 USD</div>
                 </div>
+              </div>
+
+              <!-- Costo unitario calculado (solo visible en Compra) -->
+              <div class="card" id="movCostoUnitarioInfo" style="background: var(--accent-light); margin-bottom: 1.25rem; border-left: 4px solid var(--accent); display: none; padding: 0.75rem 1rem;">
+                <div style="font-size: 0.8rem; font-weight: 600; color: var(--accent-text);">COSTO UNITARIO (precio de compra / cantidad)</div>
+                <div style="font-size: 1.2rem; font-weight: 700; color: var(--accent-text);" id="movCostoUnitarioValor">0.00 Bs/unidad</div>
+                <div style="font-size: 0.75rem; color: var(--accent-text); opacity: 0.8;">Este costo actualizará automáticamente el precio de compra del producto.</div>
               </div>
 
               <div class="form-grid" style="margin-bottom: 1.25rem;">
@@ -2273,6 +2280,10 @@
         STATE.productos.map(p => `<option value="${p.id}" data-compra="${p.precio_compra_actual}" data-venta="${p.precio_venta_actual}" data-cat="${p.categoria}">${p.nombre} (${p.categoria} - Stock: ${p.stock})</option>`).join("");
     }
 
+    function isCompra() {
+      return document.getElementById("movTipo").value === "Compra";
+    }
+
     function setTipoMovimiento(tipo) {
       document.getElementById("movTipo").value = tipo;
       const btnVenta = document.getElementById("btnTipoVenta");
@@ -2288,7 +2299,7 @@
       } else {
         btnCompra.classList.add("active", "compra");
         btnVenta.classList.remove("active", "venta");
-        labelPu.textContent = "Precio de Compra (Costo Bs)";
+        labelPu.textContent = "Monto Total Compra (Bs)";
         labelPer.textContent = "Proveedor / Vendedor";
       }
       onProductoSeleccionado();
@@ -2305,6 +2316,7 @@
       if (tipo === "Venta") {
         puInput.value = opt.getAttribute("data-venta") || 0;
       } else {
+        // En compra: precargar como referencia el costo unitario actual del producto
         puInput.value = opt.getAttribute("data-compra") || 0;
       }
       calcularTotalEnVivo();
@@ -2312,10 +2324,27 @@
 
     function calcularTotalEnVivo() {
       const cant = parseInt(document.getElementById("movCantidad").value) || 0;
-      const pu = parseFloat(document.getElementById("movPrecioUnitario").value) || 0;
-      const totalBs = cant * pu;
+      const valor = parseFloat(document.getElementById("movPrecioUnitario").value) || 0;
+
+      let totalBs;
+      let costUnitario = 0;
+      let labelTotal = "TOTAL CALCULADO";
+
+      if (isCompra()) {
+        // En compra: el campo es el MONTO TOTAL; el costo unitario = total / cantidad
+        totalBs = valor;
+        costUnitario = cant > 0 ? valor / cant : 0;
+        labelTotal = "MONTO TOTAL A PAGAR";
+        document.getElementById("movCostoUnitarioInfo").style.display = "block";
+        document.getElementById("movCostoUnitarioValor").textContent = `${formatNum(costUnitario)} Bs/unidad`;
+      } else {
+        totalBs = cant * valor;
+        document.getElementById("movCostoUnitarioInfo").style.display = "none";
+      }
+
       const totalUsd = STATE.tasaBcv > 0 ? totalBs / STATE.tasaBcv : 0;
 
+      document.getElementById("movTotalLabel").textContent = labelTotal;
       document.getElementById("movTotalEnVivoBs").textContent = `${formatNum(totalBs)} Bs`;
       document.getElementById("movTotalEnVivoUsd").textContent = `$${formatNum(totalUsd)} USD`;
     }
@@ -2325,12 +2354,21 @@
       const btn = document.getElementById("btnGuardarMovimiento");
       btn.disabled = true;
 
+      const tipo = document.getElementById("movTipo").value;
+      const cantidad = parseInt(document.getElementById("movCantidad").value);
+      let puInput = parseFloat(document.getElementById("movPrecioUnitario").value) || 0;
+
+      // En Compra el usuario digita el MONTO TOTAL, se calcula el costo unitario
+      if (tipo === "Compra") {
+        puInput = cantidad > 0 ? puInput / cantidad : 0;
+      }
+
       const payload = {
         fecha: document.getElementById("movFecha").value,
-        tipo: document.getElementById("movTipo").value,
+        tipo: tipo,
         producto_id: parseInt(document.getElementById("movProducto").value),
-        cantidad: parseInt(document.getElementById("movCantidad").value),
-        precio_unitario_bs: parseFloat(document.getElementById("movPrecioUnitario").value),
+        cantidad: cantidad,
+        precio_unitario_bs: puInput,
         tasa_bcv: STATE.tasaBcv,
         persona_proveedor: document.getElementById("movPersona").value.trim(),
         estado_pago: document.getElementById("movEstadoPago").value,
