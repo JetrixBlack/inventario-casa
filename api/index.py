@@ -18,9 +18,9 @@ from contextlib import contextmanager
 from typing import Optional, List, Dict, Any
 
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, Response, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -283,18 +283,161 @@ app = FastAPI(
     version="2.0.0",
 )
 
+# Orígenes permitidos por CORS (la propia app). En local es 127.0.0.1:8080 / localhost.
+ORIGENES_PERMITIDOS = [
+    "https://inventariocasa.vercel.app",
+    "https://inventario-casa.vercel.app",
+    "http://127.0.0.1:8080",
+    "http://localhost:8080",
+    "http://localhost:8000",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ORIGENES_PERMITIDOS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    """Agrega cabeceras de seguridad HTTP a todas las respuestas."""
+    try:
+        response = await call_next(request)
+    except Exception:
+        import traceback
+        traceback.print_exc()
+        response = JSONResponse(status_code=500, content={"detail": "Error interno del servidor"})
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, proxy-revalidate"
+    return response
+
+
+RUTAS_PUBLICAS = {"/api/auth/login", "/api/bcv"}
+
+
+@app.middleware("http")
+async def auth_protection(request: Request, call_next):
+    """Protege todas las rutas /api/* excepto las públicas con sesión Bearer."""
+    path = request.url.path
+    es_api = path.startswith("/api/")
+    if not es_api:
+        return await call_next(request)
+    if path in RUTAS_PUBLICAS:
+        return await call_next(request)
+    authorization = request.headers.get("authorization", "")
+    if not validar_sesion(request, authorization):
+        return JSONResponse(status_code=401, content={"detail": "Sesión no válida o expirada"})
+    return await call_next(request)
+
+
 # ---------------------------------------------------------------------------
 # Manejo de Base de Datos — funciones auxiliares
 # ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Seguridad y Autenticación
+# ---------------------------------------------------------------------------
+
+import hashlib
+import secrets as pysecrets
+
+def _hash_password(password: str, salt: str) -> str:
+    """Devuelve el hash PBKDF2-SHA256 de la contraseña con el salt dado."""
+    return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 200000).hex()
+
+def _verificar_password(password: str, salt: str, hash_esperado: str) -> bool:
+    """Compara en tiempo constante una contraseña contra el hash almacenado."""
+    calculado = _hash_password(password, salt)
+    import hmac
+    return hmac.compare_digest(calculado, hash_esperado)
+
+def _generar_token() -> str:
+    """Genera un token de sesión criptográficamente seguro."""
+    return pysecrets.token_urlsafe(48)
+
+def _get_client_ip(request: Request) -> str:
+    """Obtiene la IP real del cliente respetando proxies (Vercel)."""
+    fwd = request.headers.get("x-forwarded-for", "")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    real = request.headers.get("x-real-ip", "")
+    if real:
+        return real.strip()
+    client = request.client
+    return client.host if client else ""
+
+def _crear_log(usuario: str, accion: str, entidad: str = "", entidad_id: str = "", detalle: str = "", ip: str = ""):
+    """Registra una entrada en el log de auditoría."""
+    try:
+        execute_sql(
+            "INSERT INTO log_auditoria (usuario, accion, entidad, entidad_id, detalle, ip) VALUES (?, ?, ?, ?, ?, ?)",
+            (usuario, accion, entidad, str(entidad_id), detalle[:500], ip),
+        )
+    except Exception:
+        pass
+
+def _login_bloqueado(ip: str) -> bool:
+    """True si la IP superó los intentos fallidos dentro de la ventana."""
+    try:
+        row = query_one(
+            """
+            SELECT COUNT(*) AS c FROM intentos_auth
+            WHERE ip = ? AND exitoso = 0
+              AND intentado_en >= datetime('now', ?)
+            """,
+            (ip, f"-{VENTANA_BLOQUEO_SEG} seconds"),
+        )
+        return (row["c"] if row else 0) >= MAX_INTENTOS_LOGIN
+    except Exception:
+        return False
+
+def _registrar_intento(ip: str, exitoso: bool):
+    """Registra un intento de login exitoso o fallido para rate-limit."""
+    try:
+        execute_sql(
+            "INSERT INTO intentos_auth (ip, exitoso) VALUES (?, ?)",
+            (ip, 1 if exitoso else 0),
+        )
+        if exitoso:
+            execute_sql("DELETE FROM intentos_auth WHERE ip = ? AND exitoso = 0", (ip,))
+    except Exception:
+        pass
+
+def _intentos_restantes(ip: str) -> int:
+    """Devuelve cuántos intentos quedan antes del bloqueo."""
+    try:
+        row = query_one(
+            """
+            SELECT COUNT(*) AS c FROM intentos_auth
+            WHERE ip = ? AND exitoso = 0
+              AND intentado_en >= datetime('now', ?)
+            """,
+            (ip, f"-{VENTANA_BLOQUEO_SEG} seconds"),
+        )
+        return max(0, MAX_INTENTOS_LOGIN - (row["c"] if row else 0))
+    except Exception:
+        return MAX_INTENTOS_LOGIN
+
+def validar_sesion(request: Request, authorization: Optional[str] = Header(None)) -> bool:
+    """Valida el token Bearer contra la tabla sesiones (no expirado)."""
+    if not authorization or not authorization.lower().startswith("bearer "):
+        return False
+    token = authorization.split(" ", 1)[1].strip()
+    try:
+        row = query_one("SELECT usuario, expira_en FROM sesiones WHERE token = ?", (token,))
+        if not row:
+            return False
+        return row["expira_en"] >= datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    except Exception:
+        return False
+
 
 # ---------------------------------------------------------------------------
 # Esquema e Inicialización de Base de Datos
@@ -333,8 +476,67 @@ SCHEMA_SQL = [
     """,
     """
     CREATE INDEX IF NOT EXISTS idx_movimientos_producto ON movimientos(producto_id);
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS auth (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        usuario TEXT NOT NULL UNIQUE,
+        password_salt TEXT NOT NULL,
+        password_hash TEXT NOT NULL,
+        creado_en TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS sesiones (
+        token TEXT PRIMARY KEY,
+        usuario TEXT NOT NULL,
+        creada_en TEXT NOT NULL DEFAULT (datetime('now')),
+        expira_en TEXT NOT NULL,
+        ip TEXT NOT NULL DEFAULT '',
+        user_agent TEXT NOT NULL DEFAULT ''
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_sesiones_usuario ON sesiones(usuario);
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS intentos_auth (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ip TEXT NOT NULL,
+        exitoso INTEGER NOT NULL DEFAULT 0,
+        intentado_en TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_intentos_ip ON intentos_auth(ip);
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS log_auditoria (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fecha TEXT NOT NULL DEFAULT (datetime('now')),
+        usuario TEXT NOT NULL DEFAULT '',
+        accion TEXT NOT NULL,
+        entidad TEXT NOT NULL DEFAULT '',
+        entidad_id TEXT NOT NULL DEFAULT '',
+        detalle TEXT NOT NULL DEFAULT '',
+        ip TEXT NOT NULL DEFAULT ''
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_log_fecha ON log_auditoria(fecha);
     """
 ]
+
+# Credenciales iniciales del usuario único (contraseña cifrada con PBKDF2-SHA256)
+# Usuario: admin | Contraseña: gestionada via setup
+ADMIN_USUARIO = "admin"
+ADMIN_SALT = "c186df3782ec545c24ac16287bcda85e"
+ADMIN_HASH = "0c09dcdf4b7ac37210e72b9b4811b33a8ff2003fe6737b70cdd3537063078ddb"
+
+# Límites de seguridad
+MAX_INTENTOS_LOGIN = 5
+VENTANA_BLOQUEO_SEG = 15 * 60
+SESION_DURACION_SEG = 12 * 3600  # 12h (en la práctica la sesión vive en sessionStorage hasta cerrar navegador)
 
 # Datos iniciales para siembra si la BD está limpia
 PRODUCTOS_INICIALES = [
@@ -372,11 +574,85 @@ def init_database():
             )
             print(f"[OK] {len(PRODUCTOS_INICIALES)} productos iniciales sembrados.")
 
+        # Siembra del usuario admin (solo si la tabla auth está vacía)
+        cur_auth = conn.execute("SELECT COUNT(*) FROM auth")
+        auth_row = cur_auth.fetchone()
+        auth_count = auth_row[0] if auth_row else 0
+        if auth_count == 0:
+            conn.execute(
+                "INSERT INTO auth (usuario, password_salt, password_hash) VALUES (?, ?, ?)",
+                (ADMIN_USUARIO, ADMIN_SALT, ADMIN_HASH),
+            )
+            print("[OK] Usuario admin sembrado en tabla auth.")
+
 
 @app.on_event("startup")
 async def on_startup():
     init_database()
     print("[OK] Backend Inventario Casa iniciado exitosamente.")
+
+
+# ---------------------------------------------------------------------------
+# Autenticación
+# ---------------------------------------------------------------------------
+
+class LoginRequest(BaseModel):
+    usuario: str
+    password: str
+
+
+@app.post("/api/auth/login")
+async def auth_login(data: LoginRequest, request: Request):
+    """Autentica al usuario y crea una sesión. Rate-limit de 5 intentos/15min."""
+    ip = _get_client_ip(request)
+    cuerpo_ip = request.headers.get("x-forwarded-for") or ""
+    ua = request.headers.get("user-agent", "")
+
+    # Rate-limit por IP (bloqueo temporal)
+    if _login_bloqueado(ip):
+        _crear_log("", "INTENTO_LOGIN_BLOQUEADO", "auth", "", f"IP {ip} bloqueada", ip)
+        return JSONResponse(status_code=429, content={"detail": "Demasiados intentos. Intenta en 15 minutos."})
+
+    row = query_one("SELECT * FROM auth WHERE usuario = ?", (data.usuario.strip(),))
+    valido = bool(row) and _verificar_password(data.password, row["password_salt"], row["password_hash"])
+
+    if not valido:
+        _registrar_intento(ip, False)
+        restan = _intentos_restantes(ip)
+        _crear_log(data.usuario.strip(), "LOGIN_FALLIDO", "auth", "", f"Usuario {data.usuario.strip()}", ip)
+        return JSONResponse(status_code=401, content={"detail": f"Usuario o contraseña incorrectos. Intentos restantes: {restan}"})
+
+    _registrar_intento(ip, True)
+
+    token = _generar_token()
+    expira = (datetime.datetime.utcnow() + datetime.timedelta(seconds=SESION_DURACION_SEG)).strftime("%Y-%m-%d %H:%M:%S")
+    execute_sql(
+        "INSERT INTO sesiones (token, usuario, expira_en, ip, user_agent) VALUES (?, ?, ?, ?, ?)",
+        (token, data.usuario.strip(), expira, ip, ua[:300]),
+    )
+    _crear_log(data.usuario.strip(), "LOGIN_EXITOSO", "auth", "", f"IP {ip}", ip)
+    return {"token": token, "usuario": data.usuario.strip(), "expira_en": expira}
+
+
+@app.post("/api/auth/logout")
+async def auth_logout(request: Request, authorization: Optional[str] = Header(None)):
+    """Invalida la sesión actual (borra el token)."""
+    if authorization and authorization.lower().startswith("bearer "):
+        token = authorization.split(" ", 1)[1].strip()
+        try:
+            execute_sql("DELETE FROM sesiones WHERE token = ?", (token,))
+        except Exception:
+            pass
+        _crear_log("", "LOGOUT", "auth", "", "", _get_client_ip(request))
+    return {"mensaje": "Sesión cerrada"}
+
+
+@app.get("/api/auth/sesion")
+async def auth_sesion(request: Request, authorization: Optional[str] = Header(None)):
+    """Devuelve el estado de la sesión actual."""
+    if not validar_sesion(request, authorization):
+        return JSONResponse(status_code=401, content={"detail": "Sesión no válida"})
+    return {"mensaje": "Sesión válida", "usuario": "admin"}
 
 
 # ---------------------------------------------------------------------------
@@ -439,7 +715,7 @@ def parse_bcv_html(html: str) -> Optional[Dict[str, Any]]:
 async def scrape_bcv_directo() -> Optional[Dict[str, Any]]:
     """Realiza la petición directa al portal oficial del BCV (https://www.bcv.org.ve/)."""
     try:
-        async with httpx.AsyncClient(verify=False, timeout=12.0, headers=BCV_HEADERS, follow_redirects=True) as client:
+        async with httpx.AsyncClient(verify=True, timeout=12.0, headers=BCV_HEADERS, follow_redirects=True) as client:
             resp = await client.get(BCV_URL)
             if resp.status_code == 200:
                 data = parse_bcv_html(resp.text)
@@ -517,11 +793,43 @@ class ProductoCreate(BaseModel):
     precio_compra_actual: float
     precio_venta_actual: float
 
+    @classmethod
+    def validar(cls, v):
+        return v
+
+    @property
+    def validado(self):
+        if not self.nombre or not self.nombre.strip() or len(self.nombre.strip()) > 120:
+            raise HTTPException(400, detail="El nombre del producto es obligatorio (máx 120 caracteres)")
+        if not self.categoria or not self.categoria.strip() or len(self.categoria.strip()) > 40:
+            raise HTTPException(400, detail="La categoría es obligatoria (máx 40 caracteres)")
+        if self.precio_compra_actual <= 0 or self.precio_compra_actual > 100_000_000:
+            raise HTTPException(400, detail="Precio de compra inválido (debe ser > 0)")
+        if self.precio_venta_actual <= 0 or self.precio_venta_actual > 100_000_000:
+            raise HTTPException(400, detail="Precio de venta inválido (debe ser > 0)")
+
+        return {
+            "nombre": self.nombre.strip(),
+            "categoria": self.categoria.strip(),
+            "precio_compra_actual": round(self.precio_compra_actual, 4),
+            "precio_venta_actual": round(self.precio_venta_actual, 4),
+        }
+
 
 class ProductoUpdate(BaseModel):
     precio_compra_actual: float
     precio_venta_actual: float
     categoria: Optional[str] = None
+
+    @property
+    def validado(self):
+        if self.categoria is not None and (not self.categoria.strip() or len(self.categoria.strip()) > 40):
+            raise HTTPException(400, detail="Categoría inválida (máx 40 caracteres)")
+        if self.precio_compra_actual <= 0 or self.precio_compra_actual > 100_000_000:
+            raise HTTPException(400, detail="Precio de compra inválido (debe ser > 0)")
+        if self.precio_venta_actual <= 0 or self.precio_venta_actual > 100_000_000:
+            raise HTTPException(400, detail="Precio de venta inválido (debe ser > 0)")
+        return self
 
 
 class MovimientoCreate(BaseModel):
@@ -534,6 +842,23 @@ class MovimientoCreate(BaseModel):
     persona_proveedor: Optional[str] = ""
     estado_pago: str
     notas: Optional[str] = ""
+
+    @property
+    def validado(self):
+        if self.tipo not in ("Compra", "Venta"):
+            raise HTTPException(400, detail="Tipo de movimiento inválido")
+        if self.estado_pago not in ("Pagado", "Fiado"):
+            raise HTTPException(400, detail="Estado de pago inválido")
+        if self.cantidad <= 0 or self.cantidad > 1_000_000:
+            raise HTTPException(400, detail="Cantidad inválida (debe ser 1-1.000.000)")
+        if self.precio_unitario_bs is not None and (self.precio_unitario_bs <= 0 or self.precio_unitario_bs > 100_000_000):
+            raise HTTPException(400, detail="Precio unitario inválido (debe ser > 0)")
+        if self.fecha:
+            try:
+                datetime.date.fromisoformat(self.fecha[:10])
+            except ValueError:
+                raise HTTPException(400, detail="Fecha inválida (formato YYYY-MM-DD)")
+        return self
 
 
 class MovimientoUpdate(BaseModel):
@@ -570,14 +895,18 @@ async def get_productos():
 
 
 @app.post("/api/productos", status_code=201)
-async def create_producto(data: ProductoCreate):
+async def create_producto(data: ProductoCreate, request: Request):
     """Crea un nuevo producto en el catálogo."""
     try:
+        v = data.validado
         res = execute_sql(
             "INSERT INTO productos (nombre, categoria, precio_compra_actual, precio_venta_actual) VALUES (?, ?, ?, ?)",
-            (data.nombre.strip(), data.categoria.strip(), data.precio_compra_actual, data.precio_venta_actual),
+            (v["nombre"], v["categoria"], v["precio_compra_actual"], v["precio_venta_actual"]),
         )
+        _crear_log("admin", "PRODUCTO_CREAR", "producto", res["last_insert_rowid"], v["nombre"], _get_client_ip(request))
         return {"id": res["last_insert_rowid"], "mensaje": "Producto creado con éxito"}
+    except HTTPException:
+        raise
     except Exception as e:
         if "UNIQUE" in str(e) or "constraint" in str(e).lower():
             raise HTTPException(400, detail="Ya existe un producto con este nombre")
@@ -585,28 +914,31 @@ async def create_producto(data: ProductoCreate):
 
 
 @app.put("/api/productos/{producto_id}")
-async def update_producto(producto_id: int, data: ProductoUpdate):
+async def update_producto(producto_id: int, data: ProductoUpdate, request: Request):
     """Actualiza los precios y categoría de un producto."""
     prod = query_one("SELECT * FROM productos WHERE id = ?", (producto_id,))
     if not prod:
         raise HTTPException(404, detail="Producto no encontrado")
 
-    cat = data.categoria.strip() if data.categoria else prod["categoria"]
+    v = data.validado
+    cat = v.categoria.strip() if v.categoria else prod["categoria"]
     execute_sql(
         "UPDATE productos SET precio_compra_actual = ?, precio_venta_actual = ?, categoria = ? WHERE id = ?",
-        (data.precio_compra_actual, data.precio_venta_actual, cat, producto_id),
+        (v.precio_compra_actual, v.precio_venta_actual, cat, producto_id),
     )
+    _crear_log("admin", "PRODUCTO_EDITAR", "producto", producto_id, prod["nombre"], _get_client_ip(request))
     return {"mensaje": "Producto actualizado correctamente", "id": producto_id}
 
 
 @app.delete("/api/productos/{producto_id}")
-async def delete_producto(producto_id: int):
+async def delete_producto(producto_id: int, request: Request):
     """Elimina un producto si no tiene movimientos registrados."""
     movs = query_one("SELECT COUNT(*) AS cnt FROM movimientos WHERE producto_id = ?", (producto_id,))
     if movs and movs["cnt"] > 0:
         raise HTTPException(400, detail=f"No se puede eliminar: tiene {movs['cnt']} movimientos registrados")
 
     execute_sql("DELETE FROM productos WHERE id = ?", (producto_id,))
+    _crear_log("admin", "PRODUCTO_ELIMINAR", "producto", producto_id, "", _get_client_ip(request))
     return {"mensaje": "Producto eliminado"}
 
 
@@ -639,11 +971,12 @@ async def get_movimientos():
 
 
 @app.post("/api/movimientos", status_code=201)
-async def create_movimiento(data: MovimientoCreate):
+async def create_movimiento(data: MovimientoCreate, request: Request):
     """
     Registra un movimiento congelando los precios históricos vigentes.
     Si es compra, permite especificar el costo unitario de compra directamente.
     """
+    data.validado
     prod = query_one("SELECT * FROM productos WHERE id = ?", (data.producto_id,))
     if not prod:
         raise HTTPException(404, detail="Producto no encontrado")
@@ -694,6 +1027,7 @@ async def create_movimiento(data: MovimientoCreate):
             (costo_unitario, data.producto_id),
         )
 
+    _crear_log("admin", "MOVIMIENTO_CREAR", "movimiento", res["last_insert_rowid"], f"{data.tipo} {data.cantidad} x {data.producto_id}", _get_client_ip(request))
     return {
         "id": res["last_insert_rowid"],
         "mensaje": "Movimiento registrado correctamente",
@@ -703,11 +1037,21 @@ async def create_movimiento(data: MovimientoCreate):
 
 
 @app.put("/api/movimientos/{movimiento_id}")
-async def update_movimiento(movimiento_id: int, data: MovimientoUpdate):
+async def update_movimiento(movimiento_id: int, data: MovimientoUpdate, request: Request):
     """Modifica un movimiento existente."""
     mov = query_one("SELECT id FROM movimientos WHERE id = ?", (movimiento_id,))
     if not mov:
         raise HTTPException(404, detail="Movimiento no encontrado")
+
+    # Validación reforzada del update
+    if data.tipo not in ("Compra", "Venta"):
+        raise HTTPException(400, detail="Tipo de movimiento inválido")
+    if data.estado_pago not in ("Pagado", "Fiado"):
+        raise HTTPException(400, detail="Estado de pago inválido")
+    if data.cantidad <= 0 or data.cantidad > 1_000_000:
+        raise HTTPException(400, detail="Cantidad inválida (debe ser 1-1.000.000)")
+    if data.precio_unitario_bs <= 0 or data.costo_unitario_bs <= 0:
+        raise HTTPException(400, detail="Precios inválidos (deben ser > 0)")
 
     execute_sql(
         """
@@ -724,24 +1068,27 @@ async def update_movimiento(movimiento_id: int, data: MovimientoUpdate):
             movimiento_id
         ),
     )
+    _crear_log("admin", "MOVIMIENTO_EDITAR", "movimiento", movimiento_id, "", _get_client_ip(request))
     return {"mensaje": "Movimiento actualizado", "id": movimiento_id}
 
 
 @app.delete("/api/movimientos/{movimiento_id}")
-async def delete_movimiento(movimiento_id: int):
+async def delete_movimiento(movimiento_id: int, request: Request):
     """Elimina un movimiento registrado."""
     execute_sql("DELETE FROM movimientos WHERE id = ?", (movimiento_id,))
+    _crear_log("admin", "MOVIMIENTO_ELIMINAR", "movimiento", movimiento_id, "", _get_client_ip(request))
     return {"mensaje": "Movimiento eliminado"}
 
 
 @app.put("/api/movimientos/{movimiento_id}/pagar")
-async def marcar_como_pagado(movimiento_id: int):
+async def marcar_como_pagado(movimiento_id: int, request: Request):
     """Marca una venta fiada como 'Pagado'."""
     mov = query_one("SELECT * FROM movimientos WHERE id = ?", (movimiento_id,))
     if not mov:
         raise HTTPException(404, detail="Movimiento no encontrado")
 
     execute_sql("UPDATE movimientos SET estado_pago = 'Pagado' WHERE id = ?", (movimiento_id,))
+    _crear_log("admin", "FIADO_PAGAR", "movimiento", movimiento_id, "", _get_client_ip(request))
     return {"mensaje": "Deuda saldada correctamente", "id": movimiento_id}
 
 

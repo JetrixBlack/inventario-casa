@@ -413,6 +413,81 @@
       backdrop-filter: blur(2px);
     }
 
+    /* Sidebar Plegable (Desktop) */
+    .sidebar-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-alt);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+    }
+    .sidebar-toggle-btn:hover {
+      background: var(--border);
+      color: var(--text);
+    }
+    .app-sidebar.collapsed {
+      width: 78px;
+    }
+    .app-sidebar.collapsed .brand-text,
+    .app-sidebar.collapsed .nav-tab span,
+    .app-sidebar.collapsed .nav-group-label,
+    .app-sidebar.collapsed .sidebar-bcv-card,
+    .app-sidebar.collapsed .theme-toggle-btn span,
+    .app-sidebar.collapsed .logout-btn span {
+      display: none;
+    }
+    .app-sidebar.collapsed .nav-tab {
+      justify-content: center;
+      padding: 0.65rem 0;
+    }
+    .app-sidebar.collapsed .sidebar-header {
+      padding: 1rem 0.6rem;
+    }
+    .app-sidebar.collapsed .nav-group-label {
+      height: 1px;
+      padding: 0;
+      margin: 0.4rem 0.5rem;
+      overflow: hidden;
+      background: var(--border);
+    }
+    .app-sidebar.collapsed .sidebar-nav {
+      padding: 0.85rem 0.5rem;
+    }
+    .app-sidebar.collapsed .sidebar-footer {
+      padding: 0.75rem 0.5rem;
+    }
+    .app-sidebar .logout-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      width: 100%;
+      padding: 0.65rem 0.85rem;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--danger);
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+    .app-sidebar .logout-btn:hover {
+      background: var(--danger-light);
+    }
+    .app-sidebar.collapsed .logout-btn {
+      justify-content: center;
+      padding: 0.65rem 0;
+    }
+
     @media (max-width: 960px) {
       .app-sidebar {
         position: fixed;
@@ -1273,9 +1348,144 @@
       from { opacity: 0; }
       to { opacity: 1; }
     }
+
+    /* -------------------------------------------------------------------------
+       Pantalla de Login
+    ------------------------------------------------------------------------- */
+    .login-view {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      background:
+        radial-gradient(1200px 500px at 10% -10%, rgba(245, 158, 11, 0.18), transparent 60%),
+        radial-gradient(900px 500px at 110% 110%, rgba(245, 158, 11, 0.12), transparent 55%),
+        var(--bg);
+      min-height: 100vh;
+    }
+    .login-view.hidden {
+      display: none;
+    }
+    .login-card {
+      width: 100%;
+      max-width: 400px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+      padding: 2.25rem 2rem;
+      animation: fadeIn 0.25s ease;
+    }
+    .login-brand {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.85rem;
+      margin-bottom: 1.75rem;
+    }
+    .login-brand-icon {
+      width: 52px;
+      height: 52px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+      color: #ffffff;
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 16px rgba(217, 119, 6, 0.35);
+    }
+    .login-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      text-align: center;
+    }
+    .login-subtitle {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
+    .login-form {
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+    .login-error {
+      display: none;
+      background: var(--danger-light);
+      color: var(--danger-text);
+      border: 1px solid var(--danger);
+      border-radius: var(--radius-sm);
+      padding: 0.65rem 0.85rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+    .login-error.visible {
+      display: block;
+    }
+    .login-password-wrap {
+      position: relative;
+    }
+    .login-password-wrap .login-toggle-pass {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px;
+    }
+    .login-btn {
+      margin-top: 0.5rem;
+      width: 100%;
+    }
+    .login-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
   </style>
 </head>
 <body>
+
+  <!-- Pantalla de Login -->
+  <div class="login-view" id="loginView">
+    <div class="login-card">
+      <div class="login-brand">
+        <div class="login-brand-icon">
+          <svg class="icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </div>
+        <div>
+          <div class="login-title">Inventario Casa</div>
+          <div class="login-subtitle">Inicia sesión para continuar</div>
+        </div>
+      </div>
+      <form class="login-form" onsubmit="return intentarLogin(event)">
+        <div class="login-error" id="loginError"></div>
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label" for="loginUsuario">Usuario</label>
+          <input type="text" id="loginUsuario" class="form-input" autocomplete="username" placeholder="Tu usuario" required />
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label" for="loginPassword">Contraseña</label>
+          <div class="login-password-wrap">
+            <input type="password" id="loginPassword" class="form-input" autocomplete="current-password" placeholder="Tu contraseña" required style="padding-right: 2.4rem;" />
+            <button type="button" class="login-toggle-pass" onclick="togglePasswordVisibilidad()" title="Mostrar / Ocultar contraseña">
+              <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary login-btn" id="loginBtn">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" x2="3" y1="12" y2="12"/></svg>
+          <span>Entrar</span>
+        </button>
+      </form>
+    </div>
+  </div>
 
   <!-- Overlay para menú en dispositivos móviles -->
   <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleMobileSidebar()"></div>
@@ -1298,6 +1508,9 @@
             <div class="brand-subtitle">Gestión Familiar</div>
           </div>
         </a>
+        <button class="sidebar-toggle-btn" onclick="toggleSidebarCollapse()" title="Plegar / Desplegar menú" aria-label="Plegar o desplegar menú">
+          <svg id="sidebarToggleIcon" class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+        </button>
       </div>
 
       <!-- Menú de Navegación Vertical -->
@@ -1357,6 +1570,11 @@
             <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
           </span>
           <span id="themeToggleText">Modo Oscuro</span>
+        </button>
+
+        <button class="logout-btn" onclick="cerrarSesion()" title="Cerrar sesión">
+          <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+          <span>Cerrar Sesión</span>
         </button>
       </div>
     </aside>
@@ -1869,6 +2087,114 @@
       dashboard: null,
     };
 
+    // ── Sesión y Autenticación ─────────────────────────────────────────────
+    const SESION_TOKEN_KEY = "ic_token";
+
+    function getToken() {
+      return sessionStorage.getItem(SESION_TOKEN_KEY) || "";
+    }
+
+    function setToken(token) {
+      if (token) sessionStorage.setItem(SESION_TOKEN_KEY, token);
+      else sessionStorage.removeItem(SESION_TOKEN_KEY);
+    }
+
+    // Envuelve fetch para incluir el token Bearer en las peticiones a /api
+    async function apiFetch(url, options = {}) {
+      const headers = new Headers(options.headers || {});
+      const token = getToken();
+      if (token && !url.includes("/api/auth/login")) {
+        headers.set("Authorization", `Bearer ${token}`);
+      }
+      return fetch(url, { ...options, headers });
+    }
+
+    // Muestra la pantalla de login y oculta la app
+    function mostrarLogin() {
+      document.getElementById("loginView").classList.remove("hidden");
+      document.querySelector(".app-layout").style.display = "none";
+    }
+
+    // Muestra la app y oculta la pantalla de login
+    function mostrarApp() {
+      document.getElementById("loginView").classList.add("hidden");
+      document.querySelector(".app-layout").style.display = "";
+    }
+
+    function mostrarErrorLogin(msg) {
+      const el = document.getElementById("loginError");
+      el.textContent = msg;
+      el.classList.add("visible");
+    }
+
+    function togglePasswordVisibilidad() {
+      const input = document.getElementById("loginPassword");
+      input.type = input.type === "password" ? "text" : "password";
+    }
+
+    async function intentarLogin(event) {
+      event.preventDefault();
+      const btn = document.getElementById("loginBtn");
+      const errEl = document.getElementById("loginError");
+      errEl.classList.remove("visible");
+      btn.disabled = true;
+
+      const usuario = document.getElementById("loginUsuario").value.trim();
+      const password = document.getElementById("loginPassword").value;
+
+      try {
+        const res = await apiFetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ usuario, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          mostrarErrorLogin(data.detail || "Usuario o contraseña incorrectos");
+          btn.disabled = false;
+          return;
+        }
+        setToken(data.token);
+        await iniciarApp();
+      } catch (e) {
+        mostrarErrorLogin("Error de conexión. Intenta de nuevo.");
+        btn.disabled = false;
+      }
+    }
+
+    async function cerrarSesion() {
+      try {
+        await apiFetch("/api/auth/logout", { method: "POST" });
+      } catch (e) { /* Ignorar */ }
+      setToken(null);
+      sessionStorage.removeItem("ic_tab_activa");
+      document.getElementById("loginUsuario").value = "";
+      document.getElementById("loginPassword").value = "";
+      mostrarLogin();
+    }
+
+    // Valida la sesión guardada (si hay token) y decide login vs app
+    async function iniciarApp() {
+      const token = getToken();
+      if (!token) {
+        mostrarLogin();
+        return;
+      }
+      try {
+        const res = await apiFetch("/api/auth/sesion");
+        if (!res.ok) {
+          setToken(null);
+          mostrarLogin();
+          return;
+        }
+        await cargarTodo();
+        mostrarApp();
+        restaurarEstadoUI();
+      } catch (e) {
+        mostrarLogin();
+      }
+    }
+
     // Estado Global de Paginación y Filtros (5 por página)
     let PAGINATION = {
       catalogo: { page: 1, perPage: 5, search: "" },
@@ -1888,9 +2214,39 @@
       document.documentElement.setAttribute("data-theme", savedTheme);
       actualizarIconoTema(savedTheme);
 
-      // Cargar Datos Iniciales
-      cargarTodo();
+      // Iniciar sesión (validar token o mostrar login)
+      iniciarApp();
     });
+
+    // -----------------------------------------------------------------------
+    // Sidebar Plegable y Estado de UI
+    // -----------------------------------------------------------------------
+    function toggleSidebarCollapse() {
+      const sidebar = document.getElementById("appSidebar");
+      const collapsed = sidebar.classList.toggle("collapsed");
+      localStorage.setItem("ic_sidebar_collapsed", collapsed ? "1" : "0");
+      const icon = document.getElementById("sidebarToggleIcon");
+      if (icon) {
+        icon.innerHTML = collapsed
+          ? '<polyline points="9 18 15 12 9 6"/>'
+          : '<polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/>';
+      }
+    }
+
+    function restaurarEstadoUI() {
+      // Restaurar colapso del sidebar
+      const sidebar = document.getElementById("appSidebar");
+      const collapsed = localStorage.getItem("ic_sidebar_collapsed") === "1";
+      if (collapsed) {
+        sidebar.classList.add("collapsed");
+        const icon = document.getElementById("sidebarToggleIcon");
+        if (icon) icon.innerHTML = '<polyline points="9 18 15 12 9 6"/>';
+      }
+
+      // Restaurar la pestaña activa (Ctrl+F5 no devuelve al Dashboard)
+      const tab = sessionStorage.getItem("ic_tab_activa") || "dashboard";
+      if (switchTab) switchTab(tab);
+    }
 
     // -----------------------------------------------------------------------
     // Navegación de Pestañas (Sidebar)
@@ -1905,6 +2261,7 @@
     };
 
     function switchTab(tabId) {
+      sessionStorage.setItem("ic_tab_activa", tabId);
       document.querySelectorAll(".nav-tab").forEach(tab => tab.classList.remove("active"));
       document.querySelectorAll(".view-section").forEach(sec => sec.classList.remove("active"));
 
@@ -1991,7 +2348,7 @@
 
     async function cargarBanco() {
       try {
-        const res = await fetch("/api/banco");
+        const res = await apiFetch("/api/banco");
         if (res.ok) {
           STATE.banco = await res.json();
           renderBanco();
@@ -2251,7 +2608,7 @@
     async function actualizarTasaBCV(mostrarToast = false) {
       try {
         const url = mostrarToast ? "/api/bcv?refresh=true" : "/api/bcv";
-        const res = await fetch(url);
+        const res = await apiFetch(url);
         if (res.ok) {
           const data = await res.json();
           STATE.tasaBcv = data.tasa;
@@ -2275,7 +2632,7 @@
 
     async function cargarDashboard() {
       try {
-        const res = await fetch("/api/dashboard");
+        const res = await apiFetch("/api/dashboard");
         if (res.ok) {
           STATE.dashboard = await res.json();
           STATE.tasaBcv = STATE.dashboard.tasa_bcv || STATE.tasaBcv;
@@ -2290,7 +2647,7 @@
 
     async function cargarProductos() {
       try {
-        const res = await fetch("/api/productos");
+        const res = await apiFetch("/api/productos");
         if (res.ok) {
           STATE.productos = await res.json();
           poblarSelectorProductos();
@@ -2303,7 +2660,7 @@
 
     async function cargarMovimientos() {
       try {
-        const res = await fetch("/api/movimientos");
+        const res = await apiFetch("/api/movimientos");
         if (res.ok) {
           STATE.movimientos = await res.json();
           renderHistorial();
@@ -2315,7 +2672,7 @@
 
     async function cargarFiados() {
       try {
-        const res = await fetch("/api/fiados");
+        const res = await apiFetch("/api/fiados");
         if (res.ok) {
           STATE.fiados = await res.json();
           renderFiados();
@@ -2725,7 +3082,7 @@
       };
 
       try {
-        const res = await fetch("/api/movimientos", {
+        const res = await apiFetch("/api/movimientos", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -2982,7 +3339,7 @@
         const btn = document.querySelector(`[data-pagar-id="${movId}"]`);
         if (btn) { btn.disabled = true; btn.textContent = "..."; }
 
-        const res = await fetch(`/api/movimientos/${movId}/pagar`, { method: "PUT" });
+        const res = await apiFetch(`/api/movimientos/${movId}/pagar`, { method: "PUT" });
         if (res.ok) {
           mostrarNotificacion("✓ Pago registrado correctamente", "success");
           await cargarTodo();
@@ -2997,7 +3354,7 @@
 
     async function eliminarMovimiento(movId) {
       try {
-        const res = await fetch(`/api/movimientos/${movId}`, { method: "DELETE" });
+        const res = await apiFetch(`/api/movimientos/${movId}`, { method: "DELETE" });
         if (res.ok) {
           mostrarNotificacion("Transacción eliminada", "success");
           await cargarTodo();
@@ -3054,7 +3411,7 @@
       };
 
       try {
-        const res = await fetch(`/api/movimientos/${id}`, {
+        const res = await apiFetch(`/api/movimientos/${id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -3107,7 +3464,7 @@
       };
 
       try {
-        const res = await fetch(`/api/productos/${id}`, {
+        const res = await apiFetch(`/api/productos/${id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -3139,7 +3496,7 @@
       };
 
       try {
-        const res = await fetch("/api/productos", {
+        const res = await apiFetch("/api/productos", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
