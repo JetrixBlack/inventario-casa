@@ -6,6 +6,17 @@
   <meta name="description" content="Inventario Casa - Sistema integral de gestión de inventario, ventas y finanzas familiares" />
   <title>Inventario Casa</title>
 
+  <!-- Anti-flash: si ya hay sesión en sessionStorage, ocultar el login antes del primer render -->
+  <script>
+    (function () {
+      try {
+        if (sessionStorage.getItem("ic_token")) {
+          document.documentElement.classList.add("ic-sesion-activa");
+        }
+      } catch (e) { /* sessionStorage puede no estar disponible */ }
+    })();
+  </script>
+
   <!-- Google Fonts: Outfit -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1404,6 +1415,14 @@
     .login-view.hidden {
       display: none;
     }
+
+    /* Si hay sesión activa (token en sessionStorage), nunca mostrar el login al recargar */
+    html.ic-sesion-activa .login-view {
+      display: none;
+    }
+    html.ic-sesion-activa .app-layout {
+      display: flex;
+    }
     .login-card {
       width: 100%;
       max-width: 400px;
@@ -2138,12 +2157,14 @@
 
     // Muestra la pantalla de login y oculta la app
     function mostrarLogin() {
+      document.documentElement.classList.remove("ic-sesion-activa");
       document.getElementById("loginView").classList.remove("hidden");
       document.querySelector(".app-layout").style.display = "none";
     }
 
     // Muestra la app y oculta la pantalla de login
     function mostrarApp() {
+      document.documentElement.classList.add("ic-sesion-activa");
       document.getElementById("loginView").classList.add("hidden");
       document.querySelector(".app-layout").style.display = "";
     }
