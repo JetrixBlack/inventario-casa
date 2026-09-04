@@ -1429,25 +1429,8 @@
               <div class="metric-value-usd" id="dashTotalInvertidoUsd">$0.00 USD</div>
             </div>
 
-            <!-- Tarjeta: Ganancia por Refrescos -->
-            <div class="card" style="border-top: 3px solid #16a34a;">
-              <div class="metric-title">
-                <span>Ganancia Refrescos</span>
-                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2h8"/><path d="M9 2v2.789a4 4 0 0 1-.672 2.219l-.656.984A4 4 0 0 0 7 10.212V20a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-9.789a4 4 0 0 0-.672-2.219l-.656-.984A4 4 0 0 1 15 4.788V2"/><path d="M7 15a6.472 6.472 0 0 1 5 0 6.47 6.47 0 0 0 5 0"/></svg>
-              </div>
-              <div class="metric-value-bs" id="dashGananciaRefrescosBs" style="color: #16a34a;">0.00 Bs</div>
-              <div class="metric-value-usd" id="dashGananciaRefrescosUsd">$0.00 USD</div>
-            </div>
-
-            <!-- Tarjeta: Ganancia por Cervezas -->
-            <div class="card" style="border-top: 3px solid #d97706;">
-              <div class="metric-title">
-                <span>Ganancia Cervezas</span>
-                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 11h1a3 3 0 0 1 0 6h-1"/><path d="M9 12v6"/><path d="M13 12v6"/><path d="M14 7.5c-1 0-1.44.5-3 .5s-2-.5-3-.5-1.44.5-3 .5"/><path d="M14 2c1 0 1.44.5 3 .5S18.56 2 20 2"/><path d="M20 2v17.5c0 .28-.14.5-.5.5h-13c-.36 0-.5-.22-.5-.5V2"/><path d="M14 7.5V2"/></svg>
-              </div>
-              <div class="metric-value-bs" id="dashGananciaCervezasBs" style="color: #d97706;">0.00 Bs</div>
-              <div class="metric-value-usd" id="dashGananciaCervezasUsd">$0.00 USD</div>
-            </div>
+            <!-- Tarjetas de Ganancia por Categoría (dinámicas) -->
+            <div id="dashGananciaCategoriaContainer" style="display: contents;"></div>
           </div>
 
           <!-- Tablas de Stock por Categoría (Refrescos y Cervezas) -->
@@ -2035,31 +2018,79 @@
       const comp = d.composicion_categorias || [];
       const proy = d.proyeccion_mensual || [];
 
-      // ── 1. Conciliación Bancaria POR MES (cada mes con sus cuentas) ──
-      const concHtml = concMensual.map((mes) => {
-        const colorMes = mes.saldo_bs >= 0 ? "var(--success)" : "var(--danger)";
-        const cuentaChips = mes.cuentas.map((cu) => {
-          const color = cu.saldo_bs >= 0 ? "var(--success)" : "var(--danger)";
-          return `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:0.3rem 0; border-bottom:1px dashed var(--border, #e5e7eb);">
-              <span style="font-size:0.8rem; color:var(--text-muted);">${cu.cuenta}</span>
-              <span style="font-size:0.85rem; font-weight:600; color:${color};">
-                ${formatNum(cu.saldo_bs)} Bs
-                <small style="color:var(--text-muted);">(E:${formatNum(cu.entradas_bs)} · S:${formatNum(cu.salidas_bs)})</small>
-              </span>
-            </div>
-          `;
-        }).join("");
-        const fiado = mes.cuentas.reduce((a, c) => a + (c.fiado_bs || 0), 0);
+      // ── 1. Conciliación Bancaria POR CATEGORÍA (bloque por categoría con su tabla mensual) ──
+      const cuentasGlobal = d.cuentas || [];
+      const catTitlesB = { Refresco: "Refrescos", Cerveza: "Cervezas", Jugo: "Jugos", Snack: "Snacks", General: "General" };
+      const catColorsB = { Refresco: "var(--success)", Cerveza: "var(--warning, #f59e0b)", Jugo: "var(--accent)", Snack: "var(--info)", General: "var(--text)" };
+
+      const catBlocks = cuentasGlobal.map((cu) => {
+        const cat = cu.cuenta;
+        const title = catTitlesB[cat] || `${cat}s`;
+        const color = catColorsB[cat] || "var(--accent)";
+        const saldoCat = cu.saldo_bs >= 0 ? "var(--success)" : "var(--danger)";
+        const filasMes = concMensual
+          .filter((m) => m.cuentas.some((c) => c.cuenta === cat))
+          .map((m) => {
+            const c = m.cuentas.find((x) => x.cuenta === cat);
+            const saldoColor = c.saldo_bs >= 0 ? "var(--success)" : "var(--danger)";
+            return `
+              <tr>
+                <td>${m.mes}</td>
+                <td class="text-right">${formatNum(c.entradas_bs)} Bs</td>
+                <td class="text-right">${formatNum(c.salidas_bs)} Bs</td>
+                <td class="text-right" style="color: var(--danger); font-weight: 600;">${formatNum(c.fiado_bs)} Bs</td>
+                <td class="text-right" style="font-weight: 700; color: ${saldoColor};">${formatNum(c.saldo_bs)} Bs</td>
+                <td class="text-right" style="font-weight: 700; color: var(--success);">${formatNum(c.ganancia_bs)} Bs</td>
+              </tr>
+            `;
+          }).join("");
+
         return `
-          <div class="kpi-card" style="border-left: 4px solid ${colorMes};">
-            <div class="kpi-label" style="display:flex; justify-content:space-between; align-items:center;">
-              <span>${mes.mes}</span>
-              <span style="font-size:0.7rem; color:var(--text-muted);">${fiado > 0 ? `Fiado: ${formatNum(fiado)} Bs` : 'Sin fiados'}</span>
+          <div class="table-container" style="margin-bottom: 1.5rem;">
+            <div class="table-header-box">
+              <div>
+                <div class="table-title">
+                  ${SVG.table}
+                  <span style="color: ${color};">${title}</span>
+                </div>
+                <div class="table-subtitle">Entradas, salidas, fiados y saldo bancario por mes</div>
+              </div>
+              <div style="text-align: right;">
+                <div style="font-weight: 700; font-size: 1.1rem; color: ${saldoCat};">${formatNum(cu.saldo_bs)} Bs</div>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">Saldo acumulado<br>Ganancia: <strong style="color: var(--success);">${formatNum(cu.ganancia_bs)} Bs</strong></div>
+              </div>
             </div>
-            <div class="kpi-value" style="color: ${colorMes}; font-size: 1.6rem;">${formatNum(mes.saldo_bs)} Bs</div>
-            <div style="margin-top:0.35rem;">
-              ${cuentaChips}
+            <table>
+              <thead>
+                <tr>
+                  <th>Mes</th>
+                  <th class="text-right">Entradas</th>
+                  <th class="text-right">Salidas</th>
+                  <th class="text-right">Fiado</th>
+                  <th class="text-right">Saldo Banco</th>
+                  <th class="text-right">Ganancia</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${filasMes || '<tr><td colspan="6" class="text-center" style="color: var(--text-muted);">Sin movimientos</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }).join("");
+
+      // Saldo bancario acumulado POR CATEGORÍA (cards dinámicas) + total general
+      const catSaldoCards = cuentasGlobal.map((cu) => {
+        const cat = cu.cuenta;
+        const title = catTitlesB[cat] || `${cat}s`;
+        const colorBorde = catColorsB[cat] || "var(--accent)";
+        const saldoC = cu.saldo_bs >= 0 ? "var(--success)" : "var(--danger)";
+        return `
+          <div class="kpi-card" style="border-left: 4px solid ${colorBorde};">
+            <div class="kpi-label"><span>Saldo Bancario · ${title}</span></div>
+            <div class="kpi-value" style="color: ${saldoC}; font-size: 1.5rem;">${formatNum(cu.saldo_bs)} Bs</div>
+            <div class="kpi-sub" style="color: var(--text-muted); font-size: 0.78rem;">
+              $${formatNum(cu.saldo_usd || 0)} USD · Ganancia: ${formatNum(cu.ganancia_bs || 0)} Bs
             </div>
           </div>
         `;
@@ -2068,7 +2099,7 @@
       const saldoGen = fc.saldo_banco_bs >= 0 ? "var(--success)" : "var(--danger)";
       const saldoGenCard = `
         <div class="kpi-card" style="border-left: 4px solid var(--accent);">
-          <div class="kpi-label"><span>Saldo Bancario Acumulado</span></div>
+          <div class="kpi-label"><span>Saldo Bancario Acumulado · Total</span></div>
           <div class="kpi-value" style="color: ${saldoGen}; font-size: 1.8rem;">${formatNum(fc.saldo_banco_bs)} Bs</div>
           <div class="kpi-sub" style="color: var(--text-muted); font-size: 0.78rem;">$${formatNum(fc.saldo_banco_usd)} USD</div>
         </div>
@@ -2099,7 +2130,8 @@
       const maxTop = top.length ? Math.max(...top.map(t => t.porcentaje), 1) : 1;
       const topBars = top.map((t) => {
         const w = Math.max(1, (t.porcentaje / maxTop) * 100);
-        const color = t.categoria === "Refresco" ? "var(--accent)" : "var(--info)";
+        const colorMap = { Refresco: "var(--accent)", Cerveza: "var(--info)", Jugo: "#ea580c", Snack: "#9333ea", General: "#64748b" };
+        const color = colorMap[t.categoria] || "var(--accent)";
         return `
           <div class="category-progress-item" style="margin-bottom: 0.6rem;">
             <div class="cat-prog-header">
@@ -2121,7 +2153,8 @@
       const totalComp = comp.reduce((a, b) => a + b.ventas_bs, 0) || 1;
       const compHtml = comp.map((c) => {
         const w = Math.max(1, (c.ventas_bs / totalComp) * 100);
-        const color = c.categoria === "Refresco" ? "var(--accent)" : "var(--info)";
+        const compColorMap = { Refresco: "var(--accent)", Cerveza: "var(--info)", Jugo: "#ea580c", Snack: "#9333ea", General: "#64748b" };
+        const color = compColorMap[c.categoria] || "var(--accent)";
         return `
           <div class="category-progress-item" style="margin-bottom: 0.6rem;">
             <div class="cat-prog-header">
@@ -2152,15 +2185,16 @@
 
       // ── Ensamblar todo ──
       container.innerHTML = `
-        <!-- Conciliación Bancaria -->
+        <!-- Conciliación Bancaria por Categoría -->
         <div class="financial-analytics-panel">
-          <div class="card" style="padding: 1rem; margin-bottom: 1rem;">
-            <div style="font-weight:700; font-size:1.1rem; margin-bottom:0.5rem;">Conciliación Bancaria por Mes (cuánto debería haber en el banco)</div>
+          <div class="financial-analytics-panel" style="margin-bottom:1rem;">
             <div class="kpi-cards-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:0.75rem;">
-              ${concHtml}
+              ${catSaldoCards}
               ${saldoGenCard}
             </div>
           </div>
+          <div style="font-weight:700; font-size:1.1rem; margin-bottom:0.75rem;">Conciliación Bancaria por Categoría</div>
+          ${catBlocks}
         </div>
 
         <!-- KPIs Financieros -->
@@ -2351,22 +2385,33 @@
       document.getElementById("dashTotalInvertidoBs").textContent = `${formatNum(gen.total_invertido_bs)} Bs`;
       document.getElementById("dashTotalInvertidoUsd").textContent = `$${formatNum(gen.total_invertido_usd)} USD`;
 
-      // Llenar tarjetas de ganancia por categoría (Refrescos y Cervezas)
+      // Llenar tarjetas de ganancia por categoría (dinámicas)
       const catData = d.resumen_por_categoria || {};
-      const refrescos = catData["Refresco"] || catData["Refrescos"] || {};
-      const cervezas  = catData["Cerveza"]  || catData["Cervezas"]  || {};
-
-      document.getElementById("dashGananciaRefrescosBs").textContent  = `${formatNum(refrescos.ganancia_general_bs  || 0)} Bs`;
-      document.getElementById("dashGananciaRefrescosUsd").textContent = `$${formatNum(refrescos.ganancia_general_usd || 0)} USD`;
-      document.getElementById("dashGananciaCervezasBs").textContent   = `${formatNum(cervezas.ganancia_general_bs   || 0)} Bs`;
-      document.getElementById("dashGananciaCervezasUsd").textContent  = `$${formatNum(cervezas.ganancia_general_usd  || 0)} USD`;
+      const catTitles = { Refresco: "Refrescos", Cerveza: "Cervezas", Jugo: "Jugos", Snack: "Snacks", General: "General" };
+      const catColors = { Refresco: "#16a34a", Cerveza: "#d97706", Jugo: "#ea580c", Snack: "#9333ea", General: "var(--accent)" };
+      const ganContainer = document.getElementById("dashGananciaCategoriaContainer");
+      const ganHtml = Object.entries(catData).map(([cat, c]) => {
+        const title = catTitles[cat] || `${cat}s`;
+        const color = catColors[cat] || "var(--accent)";
+        return `
+          <div class="card" style="border-top: 3px solid ${color};">
+            <div class="metric-title">
+              <span>Ganancia ${title}</span>
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 7 8.5 20.5 3 15"/><path d="M16 7h6v6"/></svg>
+            </div>
+            <div class="metric-value-bs" style="color: ${color};">${formatNum(c.ganancia_general_bs || 0)} Bs</div>
+            <div class="metric-value-usd">$${formatNum(c.ganancia_general_usd || 0)} USD</div>
+          </div>
+        `;
+      }).join("");
+      ganContainer.innerHTML = ganHtml;
 
       // Render Tablas de Stock por Categoría
       const stockCont = document.getElementById("dashStockContainer");
       let stockHtml = "";
 
       for (const [cat, data] of Object.entries(d.stock_por_categoria)) {
-        const plural = cat === "Refresco" ? "REFRESCOS" : (cat === "Cerveza" ? "CERVEZAS" : `${cat.toUpperCase()}S`);
+        const plural = (cat.endsWith("s") || cat.endsWith("S")) ? cat.toUpperCase() : `${cat.toUpperCase()}S`;
         stockHtml += `
           <div class="table-container" style="margin-bottom: 1.5rem;">
             <div class="table-header-box">
@@ -2414,73 +2459,77 @@
       }
       stockCont.innerHTML = stockHtml;
 
-      // Render Resúmenes Financieros por Categoría
+      // Render Resumen Financiero Consolidado (una sola tabla, fila por categoría + TOTAL)
       const finCont = document.getElementById("dashResumenFinancieroContainer");
-      let finHtml = "";
+      const catsFin = Object.entries(d.resumen_por_categoria);
 
-      for (const [cat, fin] of Object.entries(d.resumen_por_categoria)) {
-        const plural = cat === "Refresco" ? "REFRESCOS" : (cat === "Cerveza" ? "CERVEZAS" : `${cat.toUpperCase()}S`);
-        finHtml += `
-          <div class="table-container" style="margin-bottom: 1.5rem;">
+      if (!catsFin.length) {
+        finCont.innerHTML = `
+          <div class="table-container">
             <div class="table-header-box">
-              <div class="table-title">
-                ${SVG.table}
-                <span>Resumen Financiero: ${plural}</span>
-              </div>
-              <div class="table-subtitle">Compras, ventas pagadas, fiados y ganancias netas</div>
+              <div class="table-title">${SVG.table}<span>Resumen Financiero</span></div>
+              <div class="table-subtitle">Compras, ventas, fiados y ganancias de todo el historial</div>
             </div>
-            <table>
+            <div class="state-box"><div class="state-title">Sin categorías registradas</div></div>
+          </div>
+        `;
+      } else {
+        const totG = { total_invertido_bs: 0, total_fiado_bs: 0, total_vendido_pagado_bs: 0, total_vendido_general_bs: 0, ganancia_general_bs: 0, valor_stock_actual_bs: 0 };
+        catsFin.forEach(([, fin]) => {
+          totG.total_invertido_bs        += fin.total_invertido_bs        || 0;
+          totG.total_fiado_bs            += fin.total_fiado_bs            || 0;
+          totG.total_vendido_pagado_bs   += fin.total_vendido_pagado_bs   || 0;
+          totG.total_vendido_general_bs  += fin.total_vendido_general_bs  || 0;
+          totG.ganancia_general_bs       += fin.ganancia_general_bs       || 0;
+          totG.valor_stock_actual_bs     += fin.valor_stock_actual_bs     || 0;
+        });
+
+        const finRows = catsFin.map(([cat, fin]) => `
+          <tr>
+            <td style="font-weight: 600;">${cat}</td>
+            <td class="text-right">${formatNum(fin.total_invertido_bs)} Bs<br><small style="color: var(--text-muted);">$${formatNum(fin.total_invertido_usd)}</small></td>
+            <td class="text-right" style="color: var(--danger); font-weight: 600;">${formatNum(fin.total_fiado_bs)} Bs<br><small style="color: var(--text-muted);">$${formatNum(fin.total_fiado_usd)}</small></td>
+            <td class="text-right" style="color: var(--success); font-weight: 600;">${formatNum(fin.total_vendido_pagado_bs)} Bs<br><small style="color: var(--text-muted);">$${formatNum(fin.total_vendido_pagado_usd)}</small></td>
+            <td class="text-right">${formatNum(fin.total_vendido_general_bs)} Bs<br><small style="color: var(--text-muted);">$${formatNum(fin.total_vendido_general_usd)}</small></td>
+            <td class="text-right" style="font-weight: 700; color: var(--success);">${formatNum(fin.ganancia_general_bs)} Bs<br><small style="color: var(--text-muted);">$${formatNum(fin.ganancia_general_usd)}</small></td>
+            <td class="text-right" style="font-weight: 600;">${formatNum(fin.valor_stock_actual_bs)} Bs<br><small style="color: var(--text-muted);">$${formatNum(fin.valor_stock_actual_usd)}</small></td>
+          </tr>
+        `).join("");
+
+        finCont.innerHTML = `
+          <div class="table-container">
+            <div class="table-header-box">
+              <div class="table-title">${SVG.table}<span>Resumen Financiero Consolidado</span></div>
+              <div class="table-subtitle">Acumulado de todo el historial, por categoría y total general</div>
+            </div>
+            <table class="resumen-financiero-table">
               <thead>
                 <tr>
-                  <th>Concepto</th>
-                  <th class="text-right">Monto (Bs)</th>
-                  <th class="text-right">Monto (USD)</th>
-                  <th>Detalle</th>
+                  <th>Categoría</th>
+                  <th class="text-right">Total Invertido</th>
+                  <th class="text-right">Total Fiado</th>
+                  <th class="text-right">Total Vendido (Pagado)</th>
+                  <th class="text-right">Total Vendido (General)</th>
+                  <th class="text-right">Ganancia General</th>
+                  <th class="text-right">Valor Stock</th>
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td>Total Invertido</td>
-                  <td class="text-right" style="font-weight: 600;">${formatNum(fin.total_invertido_bs)} Bs</td>
-                  <td class="text-right" style="color: var(--accent); font-weight: 600;">$${formatNum(fin.total_invertido_usd)}</td>
-                  <td style="color: var(--text-muted);">Compras de ${cat.toLowerCase()}s</td>
-                </tr>
-                <tr>
-                  <td>Total Fiado (Pendiente)</td>
-                  <td class="text-right" style="font-weight: 600; color: var(--danger);">${formatNum(fin.total_fiado_bs)} Bs</td>
-                  <td class="text-right" style="color: var(--accent); font-weight: 600;">$${formatNum(fin.total_fiado_usd)}</td>
-                  <td style="color: var(--text-muted);">Deuda clientes ${cat.toLowerCase()}s</td>
-                </tr>
-                <tr>
-                  <td>Total Vendido (Pagado)</td>
-                  <td class="text-right" style="font-weight: 600; color: var(--success);">${formatNum(fin.total_vendido_pagado_bs)} Bs</td>
-                  <td class="text-right" style="color: var(--accent); font-weight: 600;">$${formatNum(fin.total_vendido_pagado_usd)}</td>
-                  <td style="color: var(--text-muted);">Ventas cobradas</td>
-                </tr>
-                <tr>
-                  <td>Total Vendido (General)</td>
-                  <td class="text-right" style="font-weight: 600;">${formatNum(fin.total_vendido_general_bs)} Bs</td>
-                  <td class="text-right" style="color: var(--accent); font-weight: 600;">$${formatNum(fin.total_vendido_general_usd)}</td>
-                  <td style="color: var(--text-muted);">Todas las ventas (${cat.toLowerCase()}s)</td>
-                </tr>
-                <tr style="background: var(--bg-alt);">
-                  <td style="font-weight: 700;">Ganancia General</td>
-                  <td class="text-right" style="font-weight: 700; color: var(--success);">${formatNum(fin.ganancia_general_bs)} Bs</td>
-                  <td class="text-right" style="color: var(--accent); font-weight: 700;">$${formatNum(fin.ganancia_general_usd)}</td>
-                  <td style="font-weight: 600;">Ventas menos Costo (${cat.toLowerCase()}s)</td>
-                </tr>
-                <tr>
-                  <td style="font-weight: 600;">Valor Stock Actual</td>
-                  <td class="text-right" style="font-weight: 600;">${formatNum(fin.valor_stock_actual_bs)} Bs</td>
-                  <td class="text-right" style="color: var(--accent); font-weight: 600;">$${formatNum(fin.valor_stock_actual_usd)}</td>
-                  <td style="color: var(--text-muted);">Valor de inventario restante</td>
+                ${finRows}
+                <tr style="background: var(--bg-alt); border-top: 2px solid var(--border);">
+                  <td style="font-weight: 700;">TOTAL</td>
+                  <td class="text-right" style="font-weight: 700;">${formatNum(totG.total_invertido_bs)} Bs</td>
+                  <td class="text-right" style="font-weight: 700; color: var(--danger);">${formatNum(totG.total_fiado_bs)} Bs</td>
+                  <td class="text-right" style="font-weight: 700; color: var(--success);">${formatNum(totG.total_vendido_pagado_bs)} Bs</td>
+                  <td class="text-right" style="font-weight: 700;">${formatNum(totG.total_vendido_general_bs)} Bs</td>
+                  <td class="text-right" style="font-weight: 700; color: var(--success);">${formatNum(totG.ganancia_general_bs)} Bs</td>
+                  <td class="text-right" style="font-weight: 700;">${formatNum(totG.valor_stock_actual_bs)} Bs</td>
                 </tr>
               </tbody>
             </table>
           </div>
         `;
       }
-      finCont.innerHTML = finHtml;
     }
 
     // 2. Render Catálogo (Con Buscador y Paginación 5 por página)

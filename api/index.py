@@ -1018,6 +1018,7 @@ async def get_banco():
         f = r["fiado_bs"] or 0.0
         vt = r["ventas_totales_bs"] or 0.0
         cv = r["costo_ventas_bs"] or 0.0
+        g = round(vt - cv, 2)
         saldo = round(e - s, 2)
         entradas += e
         salidas += s
@@ -1046,6 +1047,8 @@ async def get_banco():
             "fiado_usd": round(f / tasa_bcv, 2) if tasa_bcv > 0 else 0.0,
             "saldo_bs": saldo,
             "saldo_usd": round(saldo / tasa_bcv, 2) if tasa_bcv > 0 else 0.0,
+            "ganancia_bs": g,
+            "ganancia_usd": round(g / tasa_bcv, 2) if tasa_bcv > 0 else 0.0,
         })
 
     # Convertir a lista ordenada (mes más reciente primero) y con el saldo USD
@@ -1066,7 +1069,7 @@ async def get_banco():
             if cu["cuenta"] not in cuentas_global:
                 cuentas_global[cu["cuenta"]] = {
                     "cuenta": cu["cuenta"],
-                    "entradas_bs": 0.0, "salidas_bs": 0.0, "fiado_bs": 0.0, "saldo_bs": 0.0,
+                    "entradas_bs": 0.0, "salidas_bs": 0.0, "fiado_bs": 0.0, "saldo_bs": 0.0, "ganancia_bs": 0.0,
                 }
             cuentas_global[cu["cuenta"]]["entradas_bs"] += cu["entradas_bs"]
             cuentas_global[cu["cuenta"]]["salidas_bs"] += cu["salidas_bs"]
@@ -1075,7 +1078,9 @@ async def get_banco():
     for cu in cuentas_global.values():
         cu["entradas_usd"] = round(cu["entradas_bs"] / tasa_bcv, 2) if tasa_bcv > 0 else 0.0
         cu["salidas_usd"] = round(cu["salidas_bs"] / tasa_bcv, 2) if tasa_bcv > 0 else 0.0
+        cu["fiado_usd"] = round(cu["fiado_bs"] / tasa_bcv, 2) if tasa_bcv > 0 else 0.0
         cu["saldo_usd"] = round(cu["saldo_bs"] / tasa_bcv, 2) if tasa_bcv > 0 else 0.0
+        cu["ganancia_usd"] = round(cu["ganancia_bs"] / tasa_bcv, 2) if tasa_bcv > 0 else 0.0
     cuentas = list(cuentas_global.values())
 
     saldo_banco = round(entradas - salidas, 2)
