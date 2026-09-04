@@ -528,10 +528,10 @@ SCHEMA_SQL = [
 ]
 
 # Credenciales iniciales del usuario único (contraseña cifrada con PBKDF2-SHA256)
-# Usuario: admin | Contraseña: gestionada via setup
+# Usuario: admin | Contraseña: configurada en la BD (Admin2027%)
 ADMIN_USUARIO = "admin"
-ADMIN_SALT = "c186df3782ec545c24ac16287bcda85e"
-ADMIN_HASH = "0c09dcdf4b7ac37210e72b9b4811b33a8ff2003fe6737b70cdd3537063078ddb"
+ADMIN_SALT = "afb0d8c1156375a26aec25303263db77"
+ADMIN_HASH = "8ba88babd8f4e0246d82ca992e2336bbd60a7905dc84168951f45a6a1f33c77d"
 
 # Límites de seguridad
 MAX_INTENTOS_LOGIN = 5
