@@ -1126,6 +1126,65 @@
     }
 
     /* -------------------------------------------------------------------------
+       Footer
+    ------------------------------------------------------------------------- */
+    .app-footer {
+      padding: 1.25rem 1.5rem;
+      border-top: 1px solid var(--border);
+      background: var(--bg-surface);
+      text-align: center;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 1.5rem;
+    }
+
+    .app-footer span {
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    /* -------------------------------------------------------------------------
+       Responsive: Fiados / Cuentas por Cobrar
+    ------------------------------------------------------------------------- */
+    @media (max-width: 768px) {
+      .fiado-header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 0.75rem !important;
+      }
+
+      .fiado-items-table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .fiado-items-table thead,
+      .fiado-items-table tbody,
+      .fiado-items-table tr,
+      .fiado-items-table th,
+      .fiado-items-table td {
+        display: revert;
+      }
+
+      .fiado-items-table th,
+      .fiado-items-table td {
+        white-space: nowrap;
+        padding: 0.45rem 0.6rem;
+        font-size: 0.75rem;
+      }
+    }
+
+    /* Responsive: Tabla del historial en mobile */
+    @media (max-width: 768px) {
+      #movimientosTableWrapper table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+    }
+
+    /* -------------------------------------------------------------------------
        Toasts / Notificaciones
     ------------------------------------------------------------------------- */
     .toast-container {
@@ -1641,6 +1700,11 @@
         </section>
 
       </main>
+
+      <!-- Footer -->
+      <footer class="app-footer">
+        <span>Inventario Casa</span> &mdash; Sistema de gestión de inventario y finanzas
+      </footer>
     </div>
   </div>
 
@@ -1716,6 +1780,78 @@
 
   <!-- Contenedor Toasts -->
   <div class="toast-container" id="toastContainer"></div>
+
+  <!-- =====================================================================
+       MODAL: EDITAR MOVIMIENTO
+  ====================================================================== -->
+  <div class="modal-overlay" id="modalEditarMovimiento">
+    <div class="modal-card">
+      <div class="modal-title">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+        <span>Editar Movimiento</span>
+      </div>
+      <form onsubmit="guardarEdicionMovimiento(event)">
+        <input type="hidden" id="editMovId" />
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" for="editMovFecha">Fecha</label>
+          <input type="date" id="editMovFecha" class="form-input" required />
+        </div>
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" for="editMovTipo">Tipo</label>
+          <select id="editMovTipo" class="form-select" required>
+            <option value="Venta">Venta</option>
+            <option value="Compra">Compra</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" for="editMovCantidad">Cantidad</label>
+          <input type="number" id="editMovCantidad" class="form-input" min="1" required />
+        </div>
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" for="editMovPrecioUnitario">Precio Unitario (Bs)</label>
+          <input type="number" step="0.01" id="editMovPrecioUnitario" class="form-input" required />
+        </div>
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" for="editMovPersona">Persona / Proveedor</label>
+          <input type="text" id="editMovPersona" class="form-input" />
+        </div>
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" for="editMovEstadoPago">Estado de Pago</label>
+          <select id="editMovEstadoPago" class="form-select">
+            <option value="Pagado">Pagado</option>
+            <option value="Fiado">Fiado</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+          <label class="form-label" for="editMovNotas">Notas</label>
+          <input type="text" id="editMovNotas" class="form-input" />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="cerrarModal('modalEditarMovimiento')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       MODAL: CONFIRMAR ELIMINAR MOVIMIENTO
+  ====================================================================== -->
+  <div class="modal-overlay" id="modalEliminarMovimiento">
+    <div class="modal-card">
+      <div class="modal-title" style="color: var(--danger);">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" x2="9" y1="9" y2="15"/><line x1="9" x2="15" y1="9" y2="15"/></svg>
+        <span>Confirmar Eliminación</span>
+      </div>
+      <p style="margin-bottom: 0.5rem; color: var(--text);">¿Seguro que desea eliminar esta transacción?</p>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">El stock se recalculará automáticamente.</p>
+      <input type="hidden" id="deleteMovId" />
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="cerrarModal('modalEliminarMovimiento')">Cancelar</button>
+        <button type="button" class="btn btn-danger" onclick="confirmarEliminarMovimiento()" style="background: var(--danger); color: #fff; border: none;">Eliminar</button>
+      </div>
+    </div>
+  </div>
 
   <!-- =====================================================================
        LÓGICA JAVASCRIPT VANILLA
@@ -2648,17 +2784,13 @@
                   </span>
                 </td>
                 <td style="font-size: 0.85rem; color: var(--text-muted);">${m.notas || '-'}</td>
-                <td class="text-center">
-                  ${m.tipo === 'Venta' && m.estado_pago === 'Fiado' ? `
-                    <button class="btn btn-success" data-pagar-id="${m.id}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="marcarComoPagado(${m.id})">
-                      <svg class='icon icon-sm' viewBox='0 0 24 24'><path d='M22 11.08V12a10 10 0 1 1-5.93-9.14'/><polyline points='22 4 12 14.01 9 11.01'/></svg>
-                      <span>Pagado</span>
-                    </button>
-                  ` : `
-                    <button class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="eliminarMovimiento(${m.id})" title="Eliminar registro">
-                      ${SVG.trash}
-                    </button>
-                  `}
+                <td class="text-center" style="white-space: nowrap;">
+                  <button class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="abrirModalEditarMovimiento(${m.id})" title="Editar movimiento">
+                    ${SVG.edit}
+                  </button>
+                  <button class="btn btn-danger" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="abrirModalEliminarMovimiento(${m.id})" title="Eliminar registro">
+                    ${SVG.trash}
+                  </button>
                 </td>
               </tr>
             `).join("")}
@@ -2814,8 +2946,6 @@
     }
 
     async function eliminarMovimiento(movId) {
-      if (!confirm("¿Seguro que desea eliminar esta transacción? El stock se recalculará automáticamente.")) return;
-
       try {
         const res = await fetch(`/api/movimientos/${movId}`, { method: "DELETE" });
         if (res.ok) {
@@ -2827,6 +2957,81 @@
       } catch (e) {
         mostrarNotificacion("Error de conexión", "danger");
       }
+    }
+
+    function abrirModalEditarMovimiento(movId) {
+      const mov = STATE.movimientos.find(m => m.id === movId);
+      if (!mov) return;
+
+      document.getElementById("editMovId").value = mov.id;
+      document.getElementById("editMovFecha").value = mov.fecha || "";
+      document.getElementById("editMovTipo").value = mov.tipo || "Venta";
+      document.getElementById("editMovCantidad").value = mov.cantidad || "";
+      document.getElementById("editMovPrecioUnitario").value = mov.tipo === 'Compra' ? (mov.costo_unitario_bs || "") : (mov.precio_unitario_bs || "");
+      document.getElementById("editMovPersona").value = mov.persona_proveedor || "";
+      document.getElementById("editMovEstadoPago").value = mov.estado_pago || "Pagado";
+      document.getElementById("editMovNotas").value = mov.notas || "";
+
+      document.getElementById("modalEditarMovimiento").classList.add("active");
+    }
+
+    async function guardarEdicionMovimiento(e) {
+      e.preventDefault();
+      const id = document.getElementById("editMovId").value;
+      const movOriginal = STATE.movimientos.find(m => m.id === parseInt(id));
+      const tipo = document.getElementById("editMovTipo").value;
+      const cantidad = parseInt(document.getElementById("editMovCantidad").value);
+      let puInput = parseFloat(document.getElementById("editMovPrecioUnitario").value) || 0;
+      let costoUnitario = 0;
+
+      if (tipo === "Compra") {
+        costoUnitario = cantidad > 0 ? puInput / cantidad : 0;
+      } else {
+        costoUnitario = movOriginal ? (movOriginal.costo_unitario_bs || 0) : 0;
+      }
+
+      const payload = {
+        fecha: document.getElementById("editMovFecha").value,
+        tipo: tipo,
+        producto_id: movOriginal ? movOriginal.producto_id : 0,
+        cantidad: cantidad,
+        precio_unitario_bs: tipo === "Compra" ? 0 : puInput,
+        costo_unitario_bs: tipo === "Compra" ? costoUnitario : (movOriginal ? (movOriginal.costo_unitario_bs || 0) : 0),
+        tasa_bcv: STATE.tasaBcv,
+        persona_proveedor: document.getElementById("editMovPersona").value.trim(),
+        estado_pago: document.getElementById("editMovEstadoPago").value,
+        notas: document.getElementById("editMovNotas").value.trim(),
+      };
+
+      try {
+        const res = await fetch(`/api/movimientos/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (res.ok) {
+          mostrarNotificacion("Movimiento actualizado con éxito", "success");
+          cerrarModal("modalEditarMovimiento");
+          await cargarTodo();
+        } else {
+          const err = await res.json();
+          mostrarNotificacion(`Error: ${err.detail || 'No se pudo actualizar'}`, "danger");
+        }
+      } catch (e) {
+        mostrarNotificacion("Error de conexión", "danger");
+      }
+    }
+
+    function abrirModalEliminarMovimiento(movId) {
+      document.getElementById("deleteMovId").value = movId;
+      document.getElementById("modalEliminarMovimiento").classList.add("active");
+    }
+
+    async function confirmarEliminarMovimiento() {
+      const movId = document.getElementById("deleteMovId").value;
+      cerrarModal("modalEliminarMovimiento");
+      await eliminarMovimiento(parseInt(movId));
     }
 
     function abrirModalEditarPrecio(prodId) {
