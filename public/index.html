@@ -437,6 +437,31 @@
       flex: 1;
     }
 
+    /* Bottom Navigation Bar móvil: oculto por defecto en escritorio */
+    .mobile-bottom-nav {
+      display: none;
+    }
+
+    /* Botón de Cerrar Sesión en Topbar */
+    .topbar-logout-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-alt);
+      color: var(--danger);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+    }
+    .topbar-logout-btn:hover {
+      background: var(--danger-light);
+      border-color: var(--danger);
+    }
+
     /* Overlay y Botón Móvil */
     .mobile-menu-btn {
       display: none;
@@ -534,28 +559,152 @@
       padding: 0.65rem 0;
     }
 
+    /* =========================================================================
+       MOBILE: Bottom Navigation Bar (estilo CarnetEscolar Flutter)
+       ========================================================================= */
     @media (max-width: 960px) {
+      /* Ocultar sidebar lateral completamente en mobile */
       .app-sidebar {
-        position: fixed;
-        left: -270px;
-        top: 0;
-        bottom: 0;
-        box-shadow: var(--shadow-lg);
+        display: none !important;
       }
-      .app-sidebar.open {
-        transform: translateX(270px);
+
+      /* Ocultar overlay y boton hamburguesa: no se usan en mobile */
+      .sidebar-overlay,
+      .mobile-menu-btn,
+      .sidebar-toggle-btn {
+        display: none !important;
       }
-      .mobile-menu-btn {
-        display: inline-flex;
+
+      /* El layout principal ocupa todo el ancho */
+      .app-layout {
+        flex-direction: column;
       }
-      .sidebar-overlay.active {
-        display: block;
+      .app-main {
+        min-height: 100dvh;
+      }
+
+      /* Reducir padding del topbar y contenido */
+      .main-topbar {
+        padding: 0.65rem 1rem;
       }
       .app-container {
         padding: 1rem;
+        /* Espacio al fondo para que el contenido no quede tapado por el nav */
+        padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
       }
+
+      /* -----------------------------------------------------------------------
+         Bottom Nav Bar: fijo al pie de pantalla (estilo CarnetEscolar Flutter)
+      ----------------------------------------------------------------------- */
+      .mobile-bottom-nav {
+        display: flex !important;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 60px;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        background: var(--bg-surface);
+        border-top: 1px solid var(--border);
+        box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+        z-index: 50;
+        align-items: stretch;
+      }
+
+      .mobile-bottom-nav .mob-nav-item {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        padding: 6px 2px 4px;
+        font-family: inherit;
+        color: var(--text-subtle);
+        transition: color 0.15s ease, transform 0.15s ease;
+        position: relative;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .mobile-bottom-nav .mob-nav-item .mob-icon {
+        width: 22px;
+        height: 22px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        flex-shrink: 0;
+        transition: transform 0.15s ease;
+      }
+      .mobile-bottom-nav .mob-nav-item .mob-label {
+        font-size: 10px;
+        font-weight: 600;
+        line-height: 1;
+        letter-spacing: 0.01em;
+      }
+      .mobile-bottom-nav .mob-nav-item.active {
+        color: var(--accent);
+      }
+      .mobile-bottom-nav .mob-nav-item.active .mob-icon {
+        transform: scale(1.1);
+      }
+      .mobile-bottom-nav .mob-nav-item.active .mob-label {
+        font-weight: 700;
+      }
+      /* Indicador activo: linea superior del item */
+      .mobile-bottom-nav .mob-nav-item.active::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 20%;
+        right: 20%;
+        height: 2.5px;
+        border-radius: 0 0 3px 3px;
+        background: var(--accent);
+      }
+      /* Badge en bottom nav */
+      .mobile-bottom-nav .mob-nav-item .mob-badge {
+        position: absolute;
+        top: 4px;
+        right: calc(50% - 16px);
+        background: var(--danger);
+        color: #fff;
+        font-size: 9px;
+        font-weight: 700;
+        min-width: 16px;
+        height: 16px;
+        border-radius: 999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 3px;
+        line-height: 1;
+      }
+    }
+
+    /* Adaptabilidad de Topbar en moviles pequenos */
+    @media (max-width: 640px) {
       .main-topbar {
-        padding: 0.75rem 1rem;
+        padding: 0.55rem 0.85rem;
+      }
+      .topbar-title {
+        font-size: 1rem;
+      }
+      .topbar-actions {
+        gap: 0.45rem;
+      }
+      .topbar-bcv {
+        padding: 0.3rem 0.5rem;
+        font-size: 0.78rem;
+      }
+      .topbar-bcv-label {
+        display: none;
+      }
+      .topbar-theme-btn span#themeToggleText {
+        display: none;
       }
     }
 
@@ -1602,7 +1751,7 @@
 
       <!-- Pie del Sidebar: Cerrar Sesión -->
       <div class="sidebar-footer">
-        <button class="logout-btn" onclick="cerrarSesion()" title="Cerrar sesión">
+        <button class="logout-btn" onclick="confirmarCerrarSesion()" title="Cerrar sesión">
           <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
           <span>Cerrar Sesión</span>
         </button>
@@ -1635,6 +1784,9 @@
               <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
             </span>
             <span id="themeToggleText">Modo Oscuro</span>
+          </button>
+          <button class="topbar-logout-btn" onclick="confirmarCerrarSesion()" title="Cerrar sesión" aria-label="Cerrar sesión">
+            <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
           </button>
         </div>
       </header>
@@ -1710,7 +1862,7 @@
         </section>
 
         <!-- ===================================================================
-             VISTA 2 (NUEVO): BANCO & FINANZAS — Dashboard Financiero
+             VISTA 2 (NUEVO): BANCO & FINANZAS - Dashboard Financiero
              - Conciliación bancaria (entradas - salidas)
              - Top productos (barras horizontales por %)
              - Proyección mensual
@@ -2221,6 +2373,12 @@
       mostrarLogin();
     }
 
+    function confirmarCerrarSesion() {
+      if (confirm("¿Estás seguro de que deseas cerrar sesión?")) {
+        cerrarSesion();
+      }
+    }
+
     // Valida la sesión guardada (si hay token) y decide login vs app
     async function iniciarApp() {
       const token = getToken();
@@ -2318,6 +2476,11 @@
         return onclickAttr.includes(`'${tabId}'`) || onclickAttr.includes(`"${tabId}"`);
       });
       if (targetBtn) targetBtn.classList.add("active");
+
+      // Sincronizar Bottom Navigation Bar móvil (estilo CarnetEscolar Flutter)
+      document.querySelectorAll(".mob-nav-item").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.tab === tabId);
+      });
 
       const targetSec = document.getElementById(`view-${tabId}`);
       if (targetSec) targetSec.classList.add("active");
@@ -3267,8 +3430,13 @@
     function renderFiados() {
       const container = document.getElementById("fiadosContainer");
       const badge = document.getElementById("badgeFiadosCount");
+      const mobBadge = document.getElementById("mobBadgeFiados");
       if (!STATE.fiados || !STATE.fiados.clientes || !STATE.fiados.clientes.length) {
         if (badge) badge.textContent = "0";
+        if (mobBadge) {
+          mobBadge.textContent = "0";
+          mobBadge.style.display = "none";
+        }
         document.getElementById("fiadosTotalGeneralBs").textContent = "0.00 Bs";
         document.getElementById("fiadosTotalGeneralUsd").textContent = "$0.00 USD";
         container.innerHTML = `
@@ -3282,7 +3450,12 @@
       }
 
       const f = STATE.fiados;
-      if (badge) badge.textContent = f.total_deudores;
+      const countDeudores = f.total_deudores || 0;
+      if (badge) badge.textContent = countDeudores;
+      if (mobBadge) {
+        mobBadge.textContent = countDeudores;
+        mobBadge.style.display = countDeudores > 0 ? "flex" : "none";
+      }
       document.getElementById("fiadosTotalGeneralBs").textContent = `${formatNum(f.total_general_bs)} Bs`;
       document.getElementById("fiadosTotalGeneralUsd").textContent = `$${formatNum(f.total_general_usd)} USD`;
 
@@ -3600,5 +3773,50 @@
       }, 3500);
     }
   </script>
+
+  <!-- =========================================================================
+       MOBILE BOTTOM NAV BAR (solo visible en pantallas <=960px via CSS)
+       ========================================================================= -->
+  <nav class="mobile-bottom-nav" id="mobileBottomNav" aria-label="Navegacion principal">
+
+    <!-- Dashboard -->
+    <button class="mob-nav-item active" data-tab="dashboard" onclick="switchTab('dashboard')" aria-label="Dashboard">
+      <svg class="mob-icon" viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+      <span class="mob-label">Inicio</span>
+    </button>
+
+    <!-- Banco & Finanzas -->
+    <button class="mob-nav-item" data-tab="banco" onclick="switchTab('banco')" aria-label="Banco">
+      <svg class="mob-icon" viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V7"/><path d="M9 21V7"/><path d="M13 21V7"/><path d="M17 21V7"/><path d="M3 7h18"/><path d="M12 2 3 7h18l-9-5Z"/></svg>
+      <span class="mob-label">Banco</span>
+    </button>
+
+    <!-- Catálogo -->
+    <button class="mob-nav-item" data-tab="catalogo" onclick="switchTab('catalogo')" aria-label="Catálogo">
+      <svg class="mob-icon" viewBox="0 0 24 24"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+      <span class="mob-label">Catálogo</span>
+    </button>
+
+    <!-- Movimientos -->
+    <button class="mob-nav-item" data-tab="nuevo-movimiento" onclick="switchTab('nuevo-movimiento')" aria-label="Movimientos">
+      <svg class="mob-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+      <span class="mob-label">Mover</span>
+    </button>
+
+    <!-- Historial -->
+    <button class="mob-nav-item" data-tab="movimientos" onclick="switchTab('movimientos')" aria-label="Historial">
+      <svg class="mob-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span class="mob-label">Historial</span>
+    </button>
+
+    <!-- Fiados -->
+    <button class="mob-nav-item" data-tab="fiados" onclick="switchTab('fiados')" aria-label="Cuentas por Cobrar">
+      <svg class="mob-icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <span class="mob-label">Fiados</span>
+      <span class="mob-badge" id="mobBadgeFiados" style="display:none">0</span>
+    </button>
+
+  </nav>
+
 </body>
 </html>
